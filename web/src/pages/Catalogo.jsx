@@ -14,15 +14,35 @@ const CATEGORIAS = [
   'Vinho',
   'Queijo',
   'Padaria',
+  'Outros',
 ];
+
+const EPOCAS = [
+  'Todas',
+  'Primavera',
+  'Verão',
+  'Outono',
+  'Inverno',
+];
+
+const ORDENACOES = [
+  { valor: 'recentes', texto: 'Mais recentes' },
+  { valor: 'preco_asc', texto: 'Preço: menor para maior' },
+  { valor: 'preco_desc', texto: 'Preço: maior para menor' },
+];
+
+const FILTRO_INICIAL = {
+  q: '',
+  categoria: 'Todos',
+  bio: false,
+  epoca: 'Todas',
+  precoMax: '',
+  ordenar: 'recentes',
+};
 
 export default function Catalogo() {
   const [produtos, setProdutos] = useState([]);
-  const [filtro, setFiltro] = useState({
-    q: '',
-    categoria: 'Todos',
-    bio: false,
-  });
+  const [filtro, setFiltro] = useState(FILTRO_INICIAL);
   const [erro, setErro] = useState('');
 
   const carrinho = useCarrinho();
@@ -30,14 +50,46 @@ export default function Catalogo() {
 
   useEffect(() => {
     if (USAR_DADOS_SIMULADOS) {
-      // Semana 2: filtragem local sobre dados simulados
-      const filtrados = produtosSimulados.filter(
-        (produto) =>
-          (filtro.categoria === 'Todos' ||
-            produto.categoria === filtro.categoria) &&
-          (!filtro.bio || produto.biologico) &&
-          produto.nome.toLowerCase().includes(filtro.q.toLowerCase()),
-      );
+      let filtrados = produtosSimulados.filter((produto) => {
+        const correspondePesquisa = produto.nome
+          .toLowerCase()
+          .includes(filtro.q.trim().toLowerCase());
+
+        const correspondeCategoria =
+          filtro.categoria === 'Todos' ||
+          produto.categoria === filtro.categoria;
+
+        const correspondeBiologico =
+          !filtro.bio || produto.biologico;
+
+        const correspondeEpoca =
+          filtro.epoca === 'Todas' ||
+          produto.epocas?.includes(filtro.epoca);
+
+        const correspondePreco =
+          filtro.precoMax === '' ||
+          produto.preco <= Number(filtro.precoMax);
+
+        return (
+          correspondePesquisa &&
+          correspondeCategoria &&
+          correspondeBiologico &&
+          correspondeEpoca &&
+          correspondePreco
+        );
+      });
+
+      if (filtro.ordenar === 'preco_asc') {
+        filtrados = [...filtrados].sort(
+          (a, b) => a.preco - b.preco,
+        );
+      }
+
+      if (filtro.ordenar === 'preco_desc') {
+        filtrados = [...filtrados].sort(
+          (a, b) => b.preco - a.preco,
+        );
+      }
 
       setProdutos(filtrados);
       setErro('');
@@ -46,16 +98,28 @@ export default function Catalogo() {
 
     const parametros = new URLSearchParams();
 
-    if (filtro.q) {
-      parametros.set('q', filtro.q);
+    if (filtro.q.trim()) {
+      parametros.set('q', filtro.q.trim());
     }
 
     if (filtro.categoria !== 'Todos') {
       parametros.set('categoria', filtro.categoria);
     }
 
+    if (filtro.precoMax !== '') {
+      parametros.set('precoMax', filtro.precoMax);
+    }
+
     if (filtro.bio) {
       parametros.set('bio', 'true');
+    }
+
+    if (filtro.epoca !== 'Todas') {
+      parametros.set('epoca', filtro.epoca);
+    }
+
+    if (filtro.ordenar) {
+      parametros.set('ordenar', filtro.ordenar);
     }
 
     api(`/products?${parametros.toString()}`)
@@ -80,6 +144,10 @@ export default function Catalogo() {
     }));
   };
 
+  const limparFiltros = () => {
+    setFiltro(FILTRO_INICIAL);
+  };
+
   return (
     <>
       <section className="destaque mb-4">
@@ -94,7 +162,7 @@ export default function Catalogo() {
       </section>
 
       <section
-        className="filtros mb-3"
+        className="filtros mb-4"
         aria-labelledby="titulo-filtros"
       >
         <h2
@@ -104,7 +172,7 @@ export default function Catalogo() {
           Filtrar produtos
         </h2>
 
-        <div className="flex-grow-1">
+        <div className="w-100">
           <label
             className="visually-hidden"
             htmlFor="pesquisa"
@@ -154,24 +222,120 @@ export default function Catalogo() {
           })}
         </div>
 
-        <div className="form-check">
-          <input
-            id="bio"
-            className="form-check-input"
-            type="checkbox"
-            checked={filtro.bio}
-            onChange={mudar('bio')}
-          />
+        <div className="row g-2 w-100 align-items-end">
+          <div className="col-12 col-md-4">
+            <label
+              htmlFor="epoca"
+              className="form-label"
+            >
+              Época
+            </label>
 
-          <label
-            className="form-check-label"
-            htmlFor="bio"
-          >
-            Só biológico
-          </label>
+            <select
+              id="epoca"
+              className="form-select"
+              value={filtro.epoca}
+              onChange={mudar('epoca')}
+            >
+              {EPOCAS.map((epoca) => (
+                <option
+                  key={epoca}
+                  value={epoca}
+                >
+                  {epoca}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="col-12 col-md-4">
+            <label
+              htmlFor="precoMax"
+              className="form-label"
+            >
+              Preço máximo
+            </label>
+
+            <div className="input-group">
+              <span className="input-group-text">€</span>
+
+              <input
+                id="precoMax"
+                type="number"
+                className="form-control"
+                min="0"
+                step="0.01"
+                placeholder="Sem limite"
+                value={filtro.precoMax}
+                onChange={mudar('precoMax')}
+              />
+            </div>
+          </div>
+
+          <div className="col-12 col-md-4">
+            <label
+              htmlFor="ordenar"
+              className="form-label"
+            >
+              Ordenar
+            </label>
+
+            <select
+              id="ordenar"
+              className="form-select"
+              value={filtro.ordenar}
+              onChange={mudar('ordenar')}
+            >
+              {ORDENACOES.map((opcao) => (
+                <option
+                  key={opcao.valor}
+                  value={opcao.valor}
+                >
+                  {opcao.texto}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {/* TODO: filtros por época, preço máximo e ordenação */}
+        <div className="d-flex flex-wrap align-items-center gap-3 w-100">
+          <div className="form-check mb-0">
+            <input
+              id="bio"
+              className="form-check-input"
+              type="checkbox"
+              checked={filtro.bio}
+              onChange={mudar('bio')}
+            />
+
+            <label
+              className="form-check-label"
+              htmlFor="bio"
+            >
+              Só biológico
+            </label>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary"
+            onClick={limparFiltros}
+          >
+            Limpar filtros
+          </button>
+        </div>
+
+        {/* Número de resultados também dá feedback imediato ao utilizador */}
+        <p
+          className="texto-secundario small mb-0"
+          role="status"
+          aria-live="polite"
+        >
+          {produtos.length}{' '}
+          {produtos.length === 1
+            ? 'produto encontrado'
+            : 'produtos encontrados'}
+        </p>
       </section>
 
       {erro && (
@@ -207,12 +371,12 @@ export default function Catalogo() {
         ))}
       </section>
 
-      {produtos.length === 0 && (
+      {produtos.length === 0 && !erro && (
         <p
           className="texto-secundario mt-3"
           role="status"
         >
-          Nenhum produto encontrado.
+          Nenhum produto encontrado com os filtros selecionados.
         </p>
       )}
     </>

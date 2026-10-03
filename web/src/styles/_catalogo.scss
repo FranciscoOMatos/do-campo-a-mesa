@@ -67,9 +67,4 @@
   display: flex;
   flex-direction: column;
   gap: .75rem;
-
-  @include a-partir-de(lg) {
-    flex-direction: row;
-    align-items: center;
-  }
 }
