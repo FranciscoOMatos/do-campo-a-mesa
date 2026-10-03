@@ -1,28 +1,70 @@
 .grelha-produtos {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: 1fr;                 // telemóvel
-  @include a-partir-de(md) { grid-template-columns: repeat(2, 1fr); }
-  @include a-partir-de(lg) { grid-template-columns: repeat(3, 1fr); }
-  @include a-partir-de(xl) { grid-template-columns: repeat(4, 1fr); }
+  gap: .75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); // telemóvel
+
+  @include a-partir-de(md) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  @include a-partir-de(xl) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
 }
 
 .cartao-produto {
   border-color: $linha;
   overflow: hidden;
 
-  &__imagem { height: 160px; background: rgba($verde, .12); }
-  .preco { color: $verde; font-weight: 700; font-size: 1.15rem; }
+  &__imagem,
+  .card-img-top {
+    height: 110px;
+  }
+
+  &__imagem {
+    background: rgba($verde, .12);
+  }
+
+  .card-img-top {
+    object-fit: cover;
+  }
+
+  .preco {
+    color: $verde;
+    font-weight: 700;
+    font-size: 1.15rem;
+  }
+
   .etiqueta-bio {
     align-self: flex-start;
-    font-size: .7rem; font-weight: 700;
-    padding: .15rem .5rem; margin-bottom: .5rem;
+    font-size: .7rem;
+    font-weight: 700;
+    padding: .15rem .5rem;
+    margin-bottom: .5rem;
     border-radius: .35rem;
-    background: rgba($verde, .12); color: $verde-escuro;
+    background: rgba($verde, .12);
+    color: $verde-escuro;
+  }
+
+  @include a-partir-de(md) {
+    &__imagem,
+    .card-img-top {
+      height: 140px;
+    }
+  }
+
+  @include a-partir-de(xl) {
+    &__imagem,
+    .card-img-top {
+      height: 160px;
+    }
   }
 }
 
 .filtros {
-  display: flex; flex-direction: column; gap: .75rem;
-  @include a-partir-de(lg) { flex-direction: row; align-items: center; }
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
 }

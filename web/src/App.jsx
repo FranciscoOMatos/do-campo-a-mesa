@@ -18,8 +18,20 @@ import NaoEncontrado from './pages/NaoEncontrado.jsx';
 export default function App() {
   return (
     <>
+      <a
+        href="#conteudo"
+        className="visually-hidden-focusable position-absolute top-0 start-0 m-2 btn btn-dark"
+      >
+        Saltar para o conteúdo
+      </a>
+
       <Navbar />
-      <main className="container-xl py-4">
+
+      <main
+        id="conteudo"
+        className="container-xl py-4"
+        tabIndex="-1"
+      >
         <Routes>
           {/* Visitante */}
           <Route path="/" element={<Catalogo />} />
@@ -38,7 +50,10 @@ export default function App() {
           {/* Produtor */}
           <Route element={<RotaProtegida papeis={['produtor']} />}>
             <Route path="/produtor" element={<PainelProdutor />} />
-            <Route path="/produtor/leiloes/novo" element={<NovoLeilao />} />
+            <Route
+              path="/produtor/leiloes/novo"
+              element={<NovoLeilao />}
+            />
           </Route>
 
           {/* Administrador */}
@@ -46,6 +61,7 @@ export default function App() {
             <Route path="/admin" element={<PainelAdmin />} />
           </Route>
 
+          {/* Página não encontrada */}
           <Route path="*" element={<NaoEncontrado />} />
         </Routes>
       </main>
