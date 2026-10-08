@@ -5,24 +5,84 @@ const Product = require('../models/Product');
 const auth = require('../middleware/auth');
 const produtorValidado = require('../middleware/produtorValidado');
 const porFazer = require('./_naoImplementado');
+const a = require('../utils/async');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
-// GET /api/products?q=&categoria=&precoMax=&bio=&epoca=  -> 200 [produtos]
-// Exemplo já implementado; completar com os restantes filtros (época, produtor, ordenação…)
-router.get('/', async (req, res, next) => {
-  try {
-    const { q, categoria, precoMax, bio } = req.query;
+const ORDENACAO = {
+  recentes: { createdAt: -1 },
+  preco_asc: { preco: 1 },
+  preco_desc: { preco: -1 }
+};
+
+const escaparRegex = (texto) =>
+  texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// GET /api/products?q=&categoria=&precoMax=&bio=&epoca=&produtor=&ordenar=
+// Lista produtos com pesquisa, filtros e ordenação.
+router.get(
+  '/',
+  a(async (req, res) => {
+    const {
+      q,
+      categoria,
+      precoMax,
+      bio,
+      epoca,
+      produtor,
+      ordenar
+    } = req.query;
+
     const filtro = {};
-    if (q) filtro.nome = { $regex: q, $options: 'i' };
-    if (categoria && categoria !== 'Todos') filtro.categoria = categoria;
-    if (precoMax) filtro.preco = { $lte: Number(precoMax) };
-    if (bio === 'true') filtro.biologico = true;
-    // TODO: filtro por época ($in), por produtor e ordenação
-    const lista = await Product.find(filtro).populate('produtor', 'nome produtor.localidade');
+
+    if (q) {
+      filtro.nome = {
+        $regex: escaparRegex(q),
+        $options: 'i'
+      };
+    }
+
+    if (
+      categoria &&
+      categoria !== 'Todos'
+    ) {
+      filtro.categoria = categoria;
+    }
+
+    if (precoMax) {
+      filtro.preco = {
+        $lte: Number(precoMax)
+      };
+    }
+
+    if (bio === 'true') {
+      filtro.biologico = true;
+    }
+
+    if (epoca) {
+      filtro.epocas = {
+        $in: [epoca]
+      };
+    }
+
+    if (produtor) {
+      filtro.produtor = produtor;
+    }
+
+    const lista = await Product
+      .find(filtro)
+      .sort(
+        ORDENACAO[ordenar] ||
+        ORDENACAO.recentes
+      )
+      .populate(
+        'produtor',
+        'nome produtor.localidade produtor.nomeExploracao'
+      );
+
     res.json(lista);
-  } catch (err) { next(err); }
-});
+  })
+);
 
 // GET /api/products/:id  -> 200 | 404
 router.get('/:id', porFazer('Detalhe de um produto'));
