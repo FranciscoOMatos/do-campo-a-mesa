@@ -198,17 +198,75 @@ router.post(
 );
 
 // GET /api/orders
+// Lista apenas encomendas em que o utilizador
+// participa como comprador ou produtor.
 router.get(
   '/',
   auth(),
-  porFazer('Listar encomendas do utilizador')
+  a(async (req, res) => {
+    const encomendas = await Order.find({
+      $or: [
+        {
+          comprador: req.user.id
+        },
+        {
+          produtor: req.user.id
+        }
+      ]
+    })
+      .sort({
+        createdAt: -1
+      })
+      .populate(
+        'comprador',
+        'nome'
+      )
+      .populate(
+        'produtor',
+        'nome produtor.nomeExploracao produtor.localidade'
+      );
+
+    res.json(encomendas);
+  })
 );
 
 // GET /api/orders/:id
+// O mesmo filtro de participação é aplicado ao detalhe.
+// Uma encomenda alheia é tratada como não encontrada.
 router.get(
   '/:id',
   auth(),
-  porFazer('Detalhe da encomenda')
+  a(async (req, res) => {
+    const encomenda = await Order.findOne({
+      _id: req.params.id,
+
+      $or: [
+        {
+          comprador: req.user.id
+        },
+        {
+          produtor: req.user.id
+        }
+      ]
+    })
+      .populate(
+        'comprador',
+        'nome'
+      )
+      .populate(
+        'produtor',
+        'nome produtor.nomeExploracao produtor.localidade'
+      );
+
+    if (!encomenda) {
+      throw erro(
+        404,
+        'Encomenda não encontrada'
+      );
+    }
+
+    res.json(encomenda);
+  })
 );
 
 // PATCH /api/orders/:id/estado
