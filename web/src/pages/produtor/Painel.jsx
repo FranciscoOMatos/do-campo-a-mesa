@@ -205,17 +205,26 @@ export default function PainelProdutor() {
   return (
     <>
       <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
-        <h1 className="mb-0">
-          Painel do produtor
-        </h1>
+  <h1 className="mb-0">
+    Painel do produtor
+  </h1>
 
-        <Link
-          to="/produtor/leiloes/novo"
-          className="btn btn-success"
-        >
-          Criar leilão
-        </Link>
-      </div>
+  <div className="d-flex flex-wrap gap-2">
+    <Link
+      to="/produtor/produtos"
+      className="btn btn-outline-success"
+    >
+      Gerir produtos
+    </Link>
+
+    <Link
+      to="/produtor/leiloes/novo"
+      className="btn btn-success"
+    >
+      Criar leilão
+    </Link>
+  </div>
+</div>
 
       <section
         className="row g-3 mb-4"
