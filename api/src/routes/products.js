@@ -5,9 +5,11 @@ const multer = require('multer');
 const Product = require('../models/Product');
 const auth = require('../middleware/auth');
 const produtorValidado = require('../middleware/produtorValidado');
-const porFazer = require('./_naoImplementado');
 const a = require('../utils/async');
 const erro = require('../utils/erro');
+const {
+  guardarImagem
+} = require('../services/imagens');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -116,7 +118,8 @@ router.get(
   })
 );
 
-// GET /api/products/:id  -> 200 | 404
+// GET /api/products/:id
+// 200 | 404
 router.get(
   '/:id',
   a(async (req, res) => {
@@ -218,15 +221,40 @@ router.delete(
 
 // POST /api/products/:id/imagem
 // multipart/form-data, campo "imagem"
-// TODO (Passo 8): usar services/imagens.js para
-// enviar req.file para o storage da Cloud
+// Apenas o produtor dono -> 200 | 400 | 404
 router.post(
   '/:id/imagem',
   auth('produtor'),
   upload.single('imagem'),
-  porFazer(
-    'Upload da imagem do produto'
-  )
+  a(async (req, res) => {
+    const produto =
+      await Product.findOne({
+        _id: req.params.id,
+        produtor: req.user.id
+      });
+
+    if (!produto) {
+      throw erro(
+        404,
+        'Produto não encontrado'
+      );
+    }
+
+    const imagemUrl =
+      await guardarImagem(
+        req.file,
+        req
+      );
+
+    produto.imagemUrl =
+      imagemUrl;
+
+    await produto.save();
+
+    res.json({
+      imagemUrl
+    });
+  })
 );
 
 module.exports = router;
