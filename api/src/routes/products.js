@@ -194,13 +194,26 @@ router.put(
 );
 
 // DELETE /api/products/:id
-// Produtor dono -> 204 | 404
+// Apenas o produtor dono -> 204 | 404
 router.delete(
   '/:id',
   auth('produtor'),
-  porFazer(
-    'Remover produto'
-  )
+  a(async (req, res) => {
+    const resultado =
+      await Product.deleteOne({
+        _id: req.params.id,
+        produtor: req.user.id
+      });
+
+    if (!resultado.deletedCount) {
+      throw erro(
+        404,
+        'Produto não encontrado'
+      );
+    }
+
+    res.status(204).end();
+  })
 );
 
 // POST /api/products/:id/imagem
