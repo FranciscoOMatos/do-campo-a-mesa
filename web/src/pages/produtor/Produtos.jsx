@@ -37,6 +37,7 @@ const TAMANHO_MAX_IMAGEM =
 
 const FORMULARIO_INICIAL = {
   nome: '',
+  descricao: '',
   categoria: 'Hortícolas',
   preco: '',
   unidade: 'kg',
@@ -81,14 +82,14 @@ export default function ProdutosProdutor() {
   const [aGuardar, setAGuardar] =
     useState(false);
 
-    const [imagem, setImagem] =
-  useState(null);
+  const [imagem, setImagem] =
+    useState(null);
 
-const [previewImagem, setPreviewImagem] =
-  useState('');
+  const [previewImagem, setPreviewImagem] =
+    useState('');
 
-const inputImagemRef =
-  useRef(null);
+  const inputImagemRef =
+    useRef(null);
 
   const [produtoAEliminar, setProdutoAEliminar] =
     useState(null);
@@ -100,184 +101,134 @@ const inputImagemRef =
     useState('');
 
   useEffect(() => {
-  let ativo = true;
+    let ativo = true;
 
-  async function carregarProdutos() {
-    try {
-      const dados = await api(
-        `/products?produtor=${utilizador.id}`,
-        {
-          token
+    async function carregarProdutos() {
+      try {
+        const dados = await api(
+          `/products?produtor=${utilizador.id}`,
+          {
+            token
+          }
+        );
+
+        if (!ativo) {
+          return;
         }
-      );
 
-      if (!ativo) {
-        return;
-      }
+        setProdutos(dados);
+        setErro('');
+      } catch (err) {
+        if (!ativo) {
+          return;
+        }
 
-      setProdutos(dados);
-      setErro('');
-    } catch (err) {
-      if (!ativo) {
-        return;
-      }
-
-      setErro(err.message);
-    } finally {
-      if (ativo) {
-        setACarregar(false);
+        setErro(err.message);
+      } finally {
+        if (ativo) {
+          setACarregar(false);
+        }
       }
     }
-  }
 
-  carregarProdutos();
+    carregarProdutos();
 
-  return () => {
-    ativo = false;
-  };
-}, [
-  utilizador.id,
-  token
-]);
+    return () => {
+      ativo = false;
+    };
+  }, [
+    utilizador.id,
+    token
+  ]);
 
-useEffect(() => {
-  return () => {
-    if (
-      previewImagem.startsWith(
-        'blob:'
-      )
-    ) {
-      URL.revokeObjectURL(
-        previewImagem
-      );
-    }
-  };
-}, [previewImagem]);
-
-function alterarImagem(evento) {
-  const ficheiro =
-    evento.target.files?.[0];
-
-  if (!ficheiro) {
-    setImagem(null);
-    return;
-  }
-
-  if (
-    !TIPOS_IMAGEM.includes(
-      ficheiro.type
-    )
-  ) {
-    setErro(
-      'A imagem deve estar no formato JPEG, PNG ou WebP.'
-    );
-
-    evento.target.value = '';
-
-    setImagem(null);
-
-    return;
-  }
-
-  if (
-    ficheiro.size >
-    TAMANHO_MAX_IMAGEM
-  ) {
-    setErro(
-      'A imagem não pode exceder 5 MB.'
-    );
-
-    evento.target.value = '';
-
-    setImagem(null);
-
-    return;
-  }
-
-  setErro('');
-  setImagem(ficheiro);
-
-  setPreviewImagem(
-    URL.createObjectURL(
-      ficheiro
-    )
-  );
-}
+  useEffect(() => {
+    return () => {
+      if (
+        previewImagem.startsWith(
+          'blob:'
+        )
+      ) {
+        URL.revokeObjectURL(
+          previewImagem
+        );
+      }
+    };
+  }, [previewImagem]);
 
   function alterarImagem(evento) {
-  const ficheiro =
-    evento.target.files?.[0];
+    const ficheiro =
+      evento.target.files?.[0];
 
-  if (!ficheiro) {
-    setImagem(null);
-    return;
-  }
-
-  if (
-    !TIPOS_IMAGEM.includes(
-      ficheiro.type
-    )
-  ) {
-    setErro(
-      'A imagem deve estar no formato JPEG, PNG ou WebP.'
-    );
-
-    evento.target.value = '';
-
-    setImagem(null);
-
-    return;
-  }
-
-  if (
-    ficheiro.size >
-    TAMANHO_MAX_IMAGEM
-  ) {
-    setErro(
-      'A imagem não pode exceder 5 MB.'
-    );
-
-    evento.target.value = '';
-
-    setImagem(null);
-
-    return;
-  }
-
-  setErro('');
-  setImagem(ficheiro);
-
-  setPreviewImagem(
-    URL.createObjectURL(
-      ficheiro
-    )
-  );
-}
-
-async function enviarImagemProduto(
-  produtoId
-) {
-  if (!imagem) {
-    return null;
-  }
-
-  const dados =
-    new FormData();
-
-  dados.append(
-    'imagem',
-    imagem
-  );
-
-  return api(
-    `/products/${produtoId}/imagem`,
-    {
-      metodo: 'POST',
-      token,
-      corpo: dados
+    if (!ficheiro) {
+      setImagem(null);
+      return;
     }
-  );
-}
+
+    if (
+      !TIPOS_IMAGEM.includes(
+        ficheiro.type
+      )
+    ) {
+      setErro(
+        'A imagem deve estar no formato JPEG, PNG ou WebP.'
+      );
+
+      evento.target.value = '';
+
+      setImagem(null);
+
+      return;
+    }
+
+    if (
+      ficheiro.size >
+      TAMANHO_MAX_IMAGEM
+    ) {
+      setErro(
+        'A imagem não pode exceder 5 MB.'
+      );
+
+      evento.target.value = '';
+
+      setImagem(null);
+
+      return;
+    }
+
+    setErro('');
+    setImagem(ficheiro);
+
+    setPreviewImagem(
+      URL.createObjectURL(
+        ficheiro
+      )
+    );
+  }
+
+  async function enviarImagemProduto(
+    produtoId
+  ) {
+    if (!imagem) {
+      return null;
+    }
+
+    const dados =
+      new FormData();
+
+    dados.append(
+      'imagem',
+      imagem
+    );
+
+    return api(
+      `/products/${produtoId}/imagem`,
+      {
+        metodo: 'POST',
+        token,
+        corpo: dados
+      }
+    );
+  }
 
   function alterarCampo(evento) {
     const {
@@ -305,7 +256,8 @@ async function enviarImagemProduto(
         ...atual,
         epocas: selecionada
           ? atual.epocas.filter(
-              (item) => item !== epoca
+              (item) =>
+                item !== epoca
             )
           : [
               ...atual.epocas,
@@ -316,24 +268,24 @@ async function enviarImagemProduto(
   }
 
   function abrirCriacao() {
-  setProdutoEmEdicao(null);
-  setProdutoAEliminar(null);
+    setProdutoEmEdicao(null);
+    setProdutoAEliminar(null);
 
-  setFormulario(
-    FORMULARIO_INICIAL
-  );
+    setFormulario(
+      FORMULARIO_INICIAL
+    );
 
-  setImagem(null);
-  setPreviewImagem('');
+    setImagem(null);
+    setPreviewImagem('');
 
-  if (inputImagemRef.current) {
-    inputImagemRef.current.value = '';
+    if (inputImagemRef.current) {
+      inputImagemRef.current.value = '';
+    }
+
+    setMostrarFormulario(true);
+    setMensagem('');
+    setErro('');
   }
-
-  setMostrarFormulario(true);
-  setMensagem('');
-  setErro('');
-}
 
   function abrirEdicao(produto) {
     setProdutoEmEdicao(produto);
@@ -341,24 +293,32 @@ async function enviarImagemProduto(
 
     setImagem(null);
 
-setPreviewImagem(
-  produto.imagemUrl || ''
-);
+    setPreviewImagem(
+      produto.imagemUrl || ''
+    );
 
-if (inputImagemRef.current) {
-  inputImagemRef.current.value = '';
-}
+    if (inputImagemRef.current) {
+      inputImagemRef.current.value = '';
+    }
 
     setFormulario({
       nome: produto.nome,
-      categoria: produto.categoria,
-      preco: String(produto.preco),
-      unidade: produto.unidade || 'kg',
-      stock: String(produto.stock),
-      biologico: Boolean(
-        produto.biologico
-      ),
-      epocas: produto.epocas || []
+      descricao:
+        produto.descricao || '',
+      categoria:
+        produto.categoria,
+      preco:
+        String(produto.preco),
+      unidade:
+        produto.unidade || 'kg',
+      stock:
+        String(produto.stock),
+      biologico:
+        Boolean(
+          produto.biologico
+        ),
+      epocas:
+        produto.epocas || []
     });
 
     setMostrarFormulario(true);
@@ -373,11 +333,12 @@ if (inputImagemRef.current) {
 
   function cancelarFormulario() {
     setImagem(null);
-setPreviewImagem('');
+    setPreviewImagem('');
 
-if (inputImagemRef.current) {
-  inputImagemRef.current.value = '';
-}
+    if (inputImagemRef.current) {
+      inputImagemRef.current.value = '';
+    }
+
     setFormulario(
       FORMULARIO_INICIAL
     );
@@ -388,132 +349,144 @@ if (inputImagemRef.current) {
   }
 
   async function guardarProduto(evento) {
-  evento.preventDefault();
+    evento.preventDefault();
 
-  try {
-    setAGuardar(true);
-    setErro('');
-    setMensagem('');
+    try {
+      setAGuardar(true);
+      setErro('');
+      setMensagem('');
 
-    const corpo = {
-      nome: formulario.nome.trim(),
-      categoria:
-        formulario.categoria,
-      preco: Number(
-        formulario.preco
-      ),
-      unidade:
-        formulario.unidade.trim(),
-      stock: Number(
-        formulario.stock
-      ),
-      biologico:
-        formulario.biologico,
-      epocas:
-        formulario.epocas
-    };
+      const corpo = {
+        nome:
+          formulario.nome.trim(),
+        descricao:
+          formulario.descricao.trim(),
+        categoria:
+          formulario.categoria,
+        preco:
+          Number(
+            formulario.preco
+          ),
+        unidade:
+          formulario.unidade.trim(),
+        stock:
+          Number(
+            formulario.stock
+          ),
+        biologico:
+          formulario.biologico,
+        epocas:
+          formulario.epocas
+      };
 
-    let produtoGuardado;
+      let produtoGuardado;
 
-    if (produtoEmEdicao) {
-      produtoGuardado =
-        await api(
-          `/products/${produtoEmEdicao._id}`,
-          {
-            metodo: 'PUT',
-            token,
-            corpo
-          }
-        );
-    } else {
-      produtoGuardado =
-        await api(
-          '/products',
-          {
-            metodo: 'POST',
-            token,
-            corpo
-          }
-        );
-    }
-
-    let erroImagem = null;
-
-    if (imagem) {
-      try {
-        const resultadoImagem =
-          await enviarImagemProduto(
-            produtoGuardado._id
+      if (produtoEmEdicao) {
+        produtoGuardado =
+          await api(
+            `/products/${produtoEmEdicao._id}`,
+            {
+              metodo: 'PUT',
+              token,
+              corpo
+            }
           );
-
-        produtoGuardado = {
-          ...produtoGuardado,
-          imagemUrl:
-            resultadoImagem.imagemUrl
-        };
-      } catch (err) {
-        erroImagem = err;
+      } else {
+        produtoGuardado =
+          await api(
+            '/products',
+            {
+              metodo: 'POST',
+              token,
+              corpo
+            }
+          );
       }
-    }
 
-    if (produtoEmEdicao) {
-      setProdutos((atuais) =>
-        atuais.map((produto) =>
-          produto._id ===
-          produtoGuardado._id
-            ? produtoGuardado
-            : produto
-        )
+      let erroImagem = null;
+
+      if (imagem) {
+        try {
+          const resultadoImagem =
+            await enviarImagemProduto(
+              produtoGuardado._id
+            );
+
+          produtoGuardado = {
+            ...produtoGuardado,
+            imagemUrl:
+              resultadoImagem.imagemUrl
+          };
+        } catch (err) {
+          erroImagem = err;
+        }
+      }
+
+      if (produtoEmEdicao) {
+        setProdutos((atuais) =>
+          atuais.map((produto) =>
+            produto._id ===
+            produtoGuardado._id
+              ? produtoGuardado
+              : produto
+          )
+        );
+      } else {
+        setProdutos((atuais) => [
+          produtoGuardado,
+          ...atuais
+        ]);
+      }
+
+      const eraEdicao =
+        Boolean(
+          produtoEmEdicao
+        );
+
+      setFormulario(
+        FORMULARIO_INICIAL
       );
-    } else {
-      setProdutos((atuais) => [
-        produtoGuardado,
-        ...atuais
-      ]);
-    }
 
-    const eraEdicao =
-      Boolean(produtoEmEdicao);
+      setProdutoEmEdicao(null);
+      setImagem(null);
+      setPreviewImagem('');
+      setMostrarFormulario(false);
 
-    setFormulario(
-      FORMULARIO_INICIAL
-    );
+      if (inputImagemRef.current) {
+        inputImagemRef.current.value = '';
+      }
 
-    setProdutoEmEdicao(null);
-    setImagem(null);
-    setPreviewImagem('');
-    setMostrarFormulario(false);
+      if (erroImagem) {
+        setErro(
+          `${
+            eraEdicao
+              ? 'Produto atualizado'
+              : 'Produto criado'
+          }, mas não foi possível guardar a imagem: ${erroImagem.message}`
+        );
 
-    if (inputImagemRef.current) {
-      inputImagemRef.current.value = '';
-    }
+        return;
+      }
 
-    if (erroImagem) {
-      setErro(
-        `${
-          eraEdicao
-            ? 'Produto atualizado'
-            : 'Produto criado'
-        }, mas não foi possível guardar a imagem: ${erroImagem.message}`
+      setMensagem(
+        eraEdicao
+          ? 'Produto atualizado com sucesso.'
+          : 'Produto criado com sucesso.'
       );
-
-      return;
+    } catch (err) {
+      setErro(err.message);
+    } finally {
+      setAGuardar(false);
     }
-
-    setMensagem(
-      eraEdicao
-        ? 'Produto atualizado com sucesso.'
-        : 'Produto criado com sucesso.'
-    );
-  } catch (err) {
-    setErro(err.message);
-  } finally {
-    setAGuardar(false);
   }
-}
 
-  function pedirEliminacao(produto) {
-    setProdutoAEliminar(produto);
+  function pedirEliminacao(
+    produto
+  ) {
+    setProdutoAEliminar(
+      produto
+    );
+
     setMensagem('');
     setErro('');
   }
@@ -553,9 +526,21 @@ if (inputImagemRef.current) {
         produtoAEliminar._id
       ) {
         setProdutoEmEdicao(null);
+
         setFormulario(
           FORMULARIO_INICIAL
         );
+
+        setImagem(null);
+        setPreviewImagem('');
+
+        if (
+          inputImagemRef.current
+        ) {
+          inputImagemRef.current.value =
+            '';
+        }
+
         setMostrarFormulario(false);
       }
 
@@ -629,7 +614,9 @@ if (inputImagemRef.current) {
             <button
               type="button"
               className="btn btn-success"
-              onClick={abrirCriacao}
+              onClick={
+                abrirCriacao
+              }
             >
               Novo produto
             </button>
@@ -652,7 +639,9 @@ if (inputImagemRef.current) {
           </h3>
 
           <form
-            onSubmit={guardarProduto}
+            onSubmit={
+              guardarProduto
+            }
             className="row g-3"
           >
             <div className="col-12 col-md-6">
@@ -668,8 +657,12 @@ if (inputImagemRef.current) {
                 name="nome"
                 type="text"
                 className="form-control"
-                value={formulario.nome}
-                onChange={alterarCampo}
+                value={
+                  formulario.nome
+                }
+                onChange={
+                  alterarCampo
+                }
                 required
               />
             </div>
@@ -689,20 +682,49 @@ if (inputImagemRef.current) {
                 value={
                   formulario.categoria
                 }
-                onChange={alterarCampo}
+                onChange={
+                  alterarCampo
+                }
                 required
               >
                 {CATEGORIAS.map(
                   (categoria) => (
                     <option
-                      key={categoria}
-                      value={categoria}
+                      key={
+                        categoria
+                      }
+                      value={
+                        categoria
+                      }
                     >
                       {categoria}
                     </option>
                   )
                 )}
               </select>
+            </div>
+
+            <div className="col-12">
+              <label
+                htmlFor="descricao"
+                className="form-label"
+              >
+                Descrição
+              </label>
+
+              <textarea
+                id="descricao"
+                name="descricao"
+                className="form-control"
+                rows="3"
+                value={
+                  formulario.descricao
+                }
+                onChange={
+                  alterarCampo
+                }
+                placeholder="Descreva brevemente o produto"
+              />
             </div>
 
             <div className="col-12 col-sm-4">
@@ -720,8 +742,12 @@ if (inputImagemRef.current) {
                 className="form-control"
                 min="0"
                 step="0.01"
-                value={formulario.preco}
-                onChange={alterarCampo}
+                value={
+                  formulario.preco
+                }
+                onChange={
+                  alterarCampo
+                }
                 required
               />
             </div>
@@ -739,8 +765,12 @@ if (inputImagemRef.current) {
                 name="unidade"
                 type="text"
                 className="form-control"
-                value={formulario.unidade}
-                onChange={alterarCampo}
+                value={
+                  formulario.unidade
+                }
+                onChange={
+                  alterarCampo
+                }
                 required
               />
             </div>
@@ -760,10 +790,58 @@ if (inputImagemRef.current) {
                 className="form-control"
                 min="0"
                 step="1"
-                value={formulario.stock}
-                onChange={alterarCampo}
+                value={
+                  formulario.stock
+                }
+                onChange={
+                  alterarCampo
+                }
                 required
               />
+            </div>
+
+            <div className="col-12">
+              <label
+                htmlFor="imagem"
+                className="form-label"
+              >
+                Imagem do produto
+              </label>
+
+              <input
+                ref={
+                  inputImagemRef
+                }
+                id="imagem"
+                name="imagem"
+                type="file"
+                className="form-control"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={
+                  alterarImagem
+                }
+              />
+
+              <div className="form-text">
+                JPEG, PNG ou WebP, até 5 MB.
+              </div>
+
+              {previewImagem && (
+                <div className="mt-3">
+                  <img
+                    src={
+                      previewImagem
+                    }
+                    alt={`Pré-visualização de ${
+                      formulario.nome ||
+                      'produto'
+                    }`}
+                    width="180"
+                    height="120"
+                    className="img-thumbnail object-fit-cover"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="col-12">
@@ -772,49 +850,13 @@ if (inputImagemRef.current) {
                   Épocas
                 </legend>
 
-                <div className="col-12">
-  <label
-    htmlFor="imagem"
-    className="form-label"
-  >
-    Imagem do produto
-  </label>
-
-  <input
-    ref={inputImagemRef}
-    id="imagem"
-    name="imagem"
-    type="file"
-    className="form-control"
-    accept="image/jpeg,image/png,image/webp"
-    onChange={alterarImagem}
-  />
-
-  <div className="form-text">
-    JPEG, PNG ou WebP, até 5 MB.
-  </div>
-
-  {previewImagem && (
-    <div className="mt-3">
-      <img
-        src={previewImagem}
-        alt={`Pré-visualização de ${
-          formulario.nome ||
-          'produto'
-        }`}
-        width="180"
-        height="120"
-        className="img-thumbnail object-fit-cover"
-      />
-    </div>
-  )}
-</div>
-
                 <div className="d-flex flex-wrap gap-3">
                   {EPOCAS.map(
                     (epoca) => (
                       <div
-                        key={epoca}
+                        key={
+                          epoca
+                        }
                         className="form-check"
                       >
                         <input
@@ -856,7 +898,9 @@ if (inputImagemRef.current) {
                   checked={
                     formulario.biologico
                   }
-                  onChange={alterarCampo}
+                  onChange={
+                    alterarCampo
+                  }
                 />
 
                 <label
@@ -872,7 +916,9 @@ if (inputImagemRef.current) {
               <button
                 type="submit"
                 className="btn btn-success"
-                disabled={aGuardar}
+                disabled={
+                  aGuardar
+                }
               >
                 {aGuardar
                   ? 'A guardar...'
@@ -884,8 +930,12 @@ if (inputImagemRef.current) {
               <button
                 type="button"
                 className="btn btn-outline-secondary"
-                onClick={cancelarFormulario}
-                disabled={aGuardar}
+                onClick={
+                  cancelarFormulario
+                }
+                disabled={
+                  aGuardar
+                }
               >
                 Cancelar
               </button>
@@ -917,10 +967,9 @@ if (inputImagemRef.current) {
             <table className="table align-middle">
               <thead>
                 <tr>
-
                   <th scope="col">
-  Imagem
-</th>
+                    Imagem
+                  </th>
 
                   <th scope="col">
                     Produto
@@ -958,28 +1007,37 @@ if (inputImagemRef.current) {
               <tbody>
                 {produtos.map(
                   (produto) => (
-                    <tr key={produto._id}>
+                    <tr
+                      key={
+                        produto._id
+                      }
+                    >
                       <td>
-  {produto.imagemUrl ? (
-    <img
-      src={produto.imagemUrl}
-      alt={`Imagem de ${produto.nome}`}
-      width="64"
-      height="48"
-      className="rounded border object-fit-cover"
-    />
-  ) : (
-    <span className="texto-secundario small">
-      Sem imagem
-    </span>
-  )}
-</td>
+                        {produto.imagemUrl ? (
+                          <img
+                            src={
+                              produto.imagemUrl
+                            }
+                            alt={`Imagem de ${produto.nome}`}
+                            width="64"
+                            height="48"
+                            className="rounded border object-fit-cover"
+                          />
+                        ) : (
+                          <span className="texto-secundario small">
+                            Sem imagem
+                          </span>
+                        )}
+                      </td>
+
                       <th scope="row">
                         {produto.nome}
                       </th>
 
                       <td>
-                        {produto.categoria}
+                        {
+                          produto.categoria
+                        }
                       </td>
 
                       <td>
@@ -987,19 +1045,25 @@ if (inputImagemRef.current) {
                           produto.preco
                         )}{' '}
                         <span className="texto-secundario small">
-                          / {produto.unidade}
+                          /{' '}
+                          {
+                            produto.unidade
+                          }
                         </span>
                       </td>
 
                       <td>
                         <span
                           className={
-                            produto.stock <= 5
+                            produto.stock <=
+                            5
                               ? 'badge text-bg-warning'
                               : ''
                           }
                         >
-                          {produto.stock}
+                          {
+                            produto.stock
+                          }
                         </span>
                       </td>
 
@@ -1029,8 +1093,12 @@ if (inputImagemRef.current) {
                             <button
                               type="button"
                               className="btn btn-sm btn-danger"
-                              onClick={eliminarProduto}
-                              disabled={aEliminar}
+                              onClick={
+                                eliminarProduto
+                              }
+                              disabled={
+                                aEliminar
+                              }
                             >
                               {aEliminar
                                 ? 'A eliminar...'
@@ -1043,7 +1111,9 @@ if (inputImagemRef.current) {
                               onClick={
                                 cancelarEliminacao
                               }
-                              disabled={aEliminar}
+                              disabled={
+                                aEliminar
+                              }
                             >
                               Cancelar
                             </button>

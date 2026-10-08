@@ -29,6 +29,7 @@ const escaparRegex = (texto) =>
 
 const CAMPOS_PRODUTO = [
   'nome',
+  'descricao',
   'categoria',
   'preco',
   'unidade',
