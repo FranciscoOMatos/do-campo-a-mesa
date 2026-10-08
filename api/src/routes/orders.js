@@ -8,8 +8,6 @@ const auth = require('../middleware/auth');
 const a = require('../utils/async');
 const erro = require('../utils/erro');
 
-const porFazer = require('./_naoImplementado');
-
 async function reporStock(reservas) {
   await Promise.all(
     reservas.map(({ id, quantidade }) =>
@@ -270,10 +268,90 @@ router.get(
 );
 
 // PATCH /api/orders/:id/estado
+// Apenas o produtor responsável pode avançar
+// o estado da encomenda.
 router.patch(
   '/:id/estado',
   auth('produtor'),
-  porFazer('Mudar estado da encomenda')
+  a(async (req, res) => {
+    const { estado } = req.body;
+
+    const estados = Order.ESTADOS;
+    const indiceNovoEstado = estados.indexOf(estado);
+
+    if (indiceNovoEstado < 0) {
+      throw erro(
+        400,
+        'Estado inválido'
+      );
+    }
+
+    /*
+     * O update só acontece se:
+     * - a encomenda pertencer a este produtor;
+     * - o estado atual estiver antes do novo estado.
+     *
+     * A verificação e a alteração acontecem
+     * na mesma operação no MongoDB.
+     */
+    const encomenda =
+      await Order.findOneAndUpdate(
+        {
+          _id: req.params.id,
+          produtor: req.user.id,
+          estado: {
+            $in: estados.slice(
+              0,
+              indiceNovoEstado
+            )
+          }
+        },
+        {
+          estado
+        },
+        {
+          new: true,
+          runValidators: true
+        }
+      );
+
+    if (!encomenda) {
+      const existe =
+        await Order.exists({
+          _id: req.params.id,
+          produtor: req.user.id
+        });
+
+      if (existe) {
+        throw erro(
+          409,
+          'O estado só pode avançar'
+        );
+      }
+
+      throw erro(
+        404,
+        'Encomenda não encontrada'
+      );
+    }
+
+    // Notificação em tempo real.
+    // Se ainda não houver Socket.IO ativo,
+    // esta chamada não impede a resposta REST.
+    req.app
+      .get('io')
+      ?.to(`user:${encomenda.comprador}`)
+      .emit(
+        'encomenda-atualizada',
+        {
+          id: encomenda._id,
+          estado: encomenda.estado,
+          produtor: req.user.nome
+        }
+      );
+
+    res.json(encomenda);
+  })
 );
 
 module.exports = router;
