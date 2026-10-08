@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useRef,
   useState
 } from 'react';
 
@@ -24,6 +25,15 @@ const EPOCAS = [
   'Outono',
   'Inverno'
 ];
+
+const TIPOS_IMAGEM = [
+  'image/jpeg',
+  'image/png',
+  'image/webp'
+];
+
+const TAMANHO_MAX_IMAGEM =
+  5 * 1024 * 1024;
 
 const FORMULARIO_INICIAL = {
   nome: '',
@@ -71,6 +81,15 @@ export default function ProdutosProdutor() {
   const [aGuardar, setAGuardar] =
     useState(false);
 
+    const [imagem, setImagem] =
+  useState(null);
+
+const [previewImagem, setPreviewImagem] =
+  useState('');
+
+const inputImagemRef =
+  useRef(null);
+
   const [produtoAEliminar, setProdutoAEliminar] =
     useState(null);
 
@@ -81,45 +100,184 @@ export default function ProdutosProdutor() {
     useState('');
 
   useEffect(() => {
-    let ativo = true;
+  let ativo = true;
 
-    async function carregarProdutos() {
-      try {
-        const dados = await api(
-          `/products?produtor=${utilizador.id}`,
-          {
-            token
-          }
-        );
-
-        if (!ativo) {
-          return;
+  async function carregarProdutos() {
+    try {
+      const dados = await api(
+        `/products?produtor=${utilizador.id}`,
+        {
+          token
         }
+      );
 
-        setProdutos(dados);
-        setErro('');
-      } catch (err) {
-        if (!ativo) {
-          return;
-        }
+      if (!ativo) {
+        return;
+      }
 
-        setErro(err.message);
-      } finally {
-        if (ativo) {
-          setACarregar(false);
-        }
+      setProdutos(dados);
+      setErro('');
+    } catch (err) {
+      if (!ativo) {
+        return;
+      }
+
+      setErro(err.message);
+    } finally {
+      if (ativo) {
+        setACarregar(false);
       }
     }
+  }
 
-    carregarProdutos();
+  carregarProdutos();
 
-    return () => {
-      ativo = false;
-    };
-  }, [
-    utilizador.id,
-    token
-  ]);
+  return () => {
+    ativo = false;
+  };
+}, [
+  utilizador.id,
+  token
+]);
+
+useEffect(() => {
+  return () => {
+    if (
+      previewImagem.startsWith(
+        'blob:'
+      )
+    ) {
+      URL.revokeObjectURL(
+        previewImagem
+      );
+    }
+  };
+}, [previewImagem]);
+
+function alterarImagem(evento) {
+  const ficheiro =
+    evento.target.files?.[0];
+
+  if (!ficheiro) {
+    setImagem(null);
+    return;
+  }
+
+  if (
+    !TIPOS_IMAGEM.includes(
+      ficheiro.type
+    )
+  ) {
+    setErro(
+      'A imagem deve estar no formato JPEG, PNG ou WebP.'
+    );
+
+    evento.target.value = '';
+
+    setImagem(null);
+
+    return;
+  }
+
+  if (
+    ficheiro.size >
+    TAMANHO_MAX_IMAGEM
+  ) {
+    setErro(
+      'A imagem não pode exceder 5 MB.'
+    );
+
+    evento.target.value = '';
+
+    setImagem(null);
+
+    return;
+  }
+
+  setErro('');
+  setImagem(ficheiro);
+
+  setPreviewImagem(
+    URL.createObjectURL(
+      ficheiro
+    )
+  );
+}
+
+  function alterarImagem(evento) {
+  const ficheiro =
+    evento.target.files?.[0];
+
+  if (!ficheiro) {
+    setImagem(null);
+    return;
+  }
+
+  if (
+    !TIPOS_IMAGEM.includes(
+      ficheiro.type
+    )
+  ) {
+    setErro(
+      'A imagem deve estar no formato JPEG, PNG ou WebP.'
+    );
+
+    evento.target.value = '';
+
+    setImagem(null);
+
+    return;
+  }
+
+  if (
+    ficheiro.size >
+    TAMANHO_MAX_IMAGEM
+  ) {
+    setErro(
+      'A imagem não pode exceder 5 MB.'
+    );
+
+    evento.target.value = '';
+
+    setImagem(null);
+
+    return;
+  }
+
+  setErro('');
+  setImagem(ficheiro);
+
+  setPreviewImagem(
+    URL.createObjectURL(
+      ficheiro
+    )
+  );
+}
+
+async function enviarImagemProduto(
+  produtoId
+) {
+  if (!imagem) {
+    return null;
+  }
+
+  const dados =
+    new FormData();
+
+  dados.append(
+    'imagem',
+    imagem
+  );
+
+  return api(
+    `/products/${produtoId}/imagem`,
+    {
+      metodo: 'POST',
+      token,
+      corpo: dados
+    }
+  );
+}
 
   function alterarCampo(evento) {
     const {
@@ -158,21 +316,38 @@ export default function ProdutosProdutor() {
   }
 
   function abrirCriacao() {
-    setProdutoEmEdicao(null);
-    setProdutoAEliminar(null);
+  setProdutoEmEdicao(null);
+  setProdutoAEliminar(null);
 
-    setFormulario(
-      FORMULARIO_INICIAL
-    );
+  setFormulario(
+    FORMULARIO_INICIAL
+  );
 
-    setMostrarFormulario(true);
-    setMensagem('');
-    setErro('');
+  setImagem(null);
+  setPreviewImagem('');
+
+  if (inputImagemRef.current) {
+    inputImagemRef.current.value = '';
   }
+
+  setMostrarFormulario(true);
+  setMensagem('');
+  setErro('');
+}
 
   function abrirEdicao(produto) {
     setProdutoEmEdicao(produto);
     setProdutoAEliminar(null);
+
+    setImagem(null);
+
+setPreviewImagem(
+  produto.imagemUrl || ''
+);
+
+if (inputImagemRef.current) {
+  inputImagemRef.current.value = '';
+}
 
     setFormulario({
       nome: produto.nome,
@@ -197,6 +372,12 @@ export default function ProdutosProdutor() {
   }
 
   function cancelarFormulario() {
+    setImagem(null);
+setPreviewImagem('');
+
+if (inputImagemRef.current) {
+  inputImagemRef.current.value = '';
+}
     setFormulario(
       FORMULARIO_INICIAL
     );
@@ -207,33 +388,36 @@ export default function ProdutosProdutor() {
   }
 
   async function guardarProduto(evento) {
-    evento.preventDefault();
+  evento.preventDefault();
 
-    try {
-      setAGuardar(true);
-      setErro('');
-      setMensagem('');
+  try {
+    setAGuardar(true);
+    setErro('');
+    setMensagem('');
 
-      const corpo = {
-        nome: formulario.nome.trim(),
-        categoria:
-          formulario.categoria,
-        preco: Number(
-          formulario.preco
-        ),
-        unidade:
-          formulario.unidade.trim(),
-        stock: Number(
-          formulario.stock
-        ),
-        biologico:
-          formulario.biologico,
-        epocas:
-          formulario.epocas
-      };
+    const corpo = {
+      nome: formulario.nome.trim(),
+      categoria:
+        formulario.categoria,
+      preco: Number(
+        formulario.preco
+      ),
+      unidade:
+        formulario.unidade.trim(),
+      stock: Number(
+        formulario.stock
+      ),
+      biologico:
+        formulario.biologico,
+      epocas:
+        formulario.epocas
+    };
 
-      if (produtoEmEdicao) {
-        const atualizado = await api(
+    let produtoGuardado;
+
+    if (produtoEmEdicao) {
+      produtoGuardado =
+        await api(
           `/products/${produtoEmEdicao._id}`,
           {
             metodo: 'PUT',
@@ -241,21 +425,9 @@ export default function ProdutosProdutor() {
             corpo
           }
         );
-
-        setProdutos((atuais) =>
-          atuais.map((produto) =>
-            produto._id ===
-            atualizado._id
-              ? atualizado
-              : produto
-          )
-        );
-
-        setMensagem(
-          'Produto atualizado com sucesso.'
-        );
-      } else {
-        const criado = await api(
+    } else {
+      produtoGuardado =
+        await api(
           '/products',
           {
             metodo: 'POST',
@@ -263,29 +435,82 @@ export default function ProdutosProdutor() {
             corpo
           }
         );
+    }
 
-        setProdutos((atuais) => [
-          criado,
-          ...atuais
-        ]);
+    let erroImagem = null;
 
-        setMensagem(
-          'Produto criado com sucesso.'
-        );
+    if (imagem) {
+      try {
+        const resultadoImagem =
+          await enviarImagemProduto(
+            produtoGuardado._id
+          );
+
+        produtoGuardado = {
+          ...produtoGuardado,
+          imagemUrl:
+            resultadoImagem.imagemUrl
+        };
+      } catch (err) {
+        erroImagem = err;
       }
+    }
 
-      setFormulario(
-        FORMULARIO_INICIAL
+    if (produtoEmEdicao) {
+      setProdutos((atuais) =>
+        atuais.map((produto) =>
+          produto._id ===
+          produtoGuardado._id
+            ? produtoGuardado
+            : produto
+        )
+      );
+    } else {
+      setProdutos((atuais) => [
+        produtoGuardado,
+        ...atuais
+      ]);
+    }
+
+    const eraEdicao =
+      Boolean(produtoEmEdicao);
+
+    setFormulario(
+      FORMULARIO_INICIAL
+    );
+
+    setProdutoEmEdicao(null);
+    setImagem(null);
+    setPreviewImagem('');
+    setMostrarFormulario(false);
+
+    if (inputImagemRef.current) {
+      inputImagemRef.current.value = '';
+    }
+
+    if (erroImagem) {
+      setErro(
+        `${
+          eraEdicao
+            ? 'Produto atualizado'
+            : 'Produto criado'
+        }, mas não foi possível guardar a imagem: ${erroImagem.message}`
       );
 
-      setProdutoEmEdicao(null);
-      setMostrarFormulario(false);
-    } catch (err) {
-      setErro(err.message);
-    } finally {
-      setAGuardar(false);
+      return;
     }
+
+    setMensagem(
+      eraEdicao
+        ? 'Produto atualizado com sucesso.'
+        : 'Produto criado com sucesso.'
+    );
+  } catch (err) {
+    setErro(err.message);
+  } finally {
+    setAGuardar(false);
   }
+}
 
   function pedirEliminacao(produto) {
     setProdutoAEliminar(produto);
@@ -547,6 +772,44 @@ export default function ProdutosProdutor() {
                   Épocas
                 </legend>
 
+                <div className="col-12">
+  <label
+    htmlFor="imagem"
+    className="form-label"
+  >
+    Imagem do produto
+  </label>
+
+  <input
+    ref={inputImagemRef}
+    id="imagem"
+    name="imagem"
+    type="file"
+    className="form-control"
+    accept="image/jpeg,image/png,image/webp"
+    onChange={alterarImagem}
+  />
+
+  <div className="form-text">
+    JPEG, PNG ou WebP, até 5 MB.
+  </div>
+
+  {previewImagem && (
+    <div className="mt-3">
+      <img
+        src={previewImagem}
+        alt={`Pré-visualização de ${
+          formulario.nome ||
+          'produto'
+        }`}
+        width="180"
+        height="120"
+        className="img-thumbnail object-fit-cover"
+      />
+    </div>
+  )}
+</div>
+
                 <div className="d-flex flex-wrap gap-3">
                   {EPOCAS.map(
                     (epoca) => (
@@ -654,6 +917,11 @@ export default function ProdutosProdutor() {
             <table className="table align-middle">
               <thead>
                 <tr>
+
+                  <th scope="col">
+  Imagem
+</th>
+
                   <th scope="col">
                     Produto
                   </th>
@@ -691,6 +959,21 @@ export default function ProdutosProdutor() {
                 {produtos.map(
                   (produto) => (
                     <tr key={produto._id}>
+                      <td>
+  {produto.imagemUrl ? (
+    <img
+      src={produto.imagemUrl}
+      alt={`Imagem de ${produto.nome}`}
+      width="64"
+      height="48"
+      className="rounded border object-fit-cover"
+    />
+  ) : (
+    <span className="texto-secundario small">
+      Sem imagem
+    </span>
+  )}
+</td>
                       <th scope="row">
                         {produto.nome}
                       </th>
