@@ -1,6 +1,7 @@
 // Passo 3: recurso /api/products
 const router = require('express').Router();
 const multer = require('multer');
+
 const Product = require('../models/Product');
 const auth = require('../middleware/auth');
 const produtorValidado = require('../middleware/produtorValidado');
@@ -8,7 +9,12 @@ const porFazer = require('./_naoImplementado');
 const a = require('../utils/async');
 const erro = require('../utils/erro');
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024
+  }
+});
 
 const ORDENACAO = {
   recentes: { createdAt: -1 },
@@ -18,6 +24,31 @@ const ORDENACAO = {
 
 const escaparRegex = (texto) =>
   texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const CAMPOS_PRODUTO = [
+  'nome',
+  'categoria',
+  'preco',
+  'unidade',
+  'stock',
+  'biologico',
+  'epocas'
+];
+
+const escolherCamposProduto = (obj) =>
+  Object.fromEntries(
+    CAMPOS_PRODUTO
+      .filter(
+        (campo) =>
+          obj[campo] !== undefined
+      )
+      .map(
+        (campo) => [
+          campo,
+          obj[campo]
+        ]
+      )
+  );
 
 // GET /api/products?q=&categoria=&precoMax=&bio=&epoca=&produtor=&ordenar=
 // Lista produtos com pesquisa, filtros e ordenação.
@@ -107,22 +138,82 @@ router.get(
   })
 );
 
-// POST /api/products  (produtor)  -> 201 + Location
+// POST /api/products
+// Produtor validado -> 201 + Location
 router.post(
   '/',
   auth('produtor'),
   produtorValidado,
-  porFazer('Criar produto do produtor autenticado')
+  a(async (req, res) => {
+    const produto = await Product.create({
+      ...escolherCamposProduto(
+        req.body
+      ),
+      produtor: req.user.id
+    });
+
+    res
+      .status(201)
+      .location(
+        `/api/products/${produto._id}`
+      )
+      .json(produto);
+  })
 );
 
-// PUT /api/products/:id  (produtor dono)  -> 200 | 404
-router.put('/:id', auth('produtor'), porFazer('Atualizar produto'));
+// PUT /api/products/:id
+// Apenas o produtor dono -> 200 | 404
+router.put(
+  '/:id',
+  auth('produtor'),
+  a(async (req, res) => {
+    const produto =
+      await Product.findOneAndUpdate(
+        {
+          _id: req.params.id,
+          produtor: req.user.id
+        },
+        escolherCamposProduto(
+          req.body
+        ),
+        {
+          new: true,
+          runValidators: true
+        }
+      );
 
-// DELETE /api/products/:id  (produtor dono)  -> 204 | 404
-router.delete('/:id', auth('produtor'), porFazer('Remover produto'));
+    if (!produto) {
+      throw erro(
+        404,
+        'Produto não encontrado'
+      );
+    }
 
-// POST /api/products/:id/imagem  (multipart, campo "imagem")  -> 200 { imagemUrl }
-// TODO (Passo 8): usar services/imagens.js para enviar req.file para o storage da Cloud
-router.post('/:id/imagem', auth('produtor'), upload.single('imagem'), porFazer('Upload da imagem do produto'));
+    res.json(produto);
+  })
+);
+
+// DELETE /api/products/:id
+// Produtor dono -> 204 | 404
+router.delete(
+  '/:id',
+  auth('produtor'),
+  porFazer(
+    'Remover produto'
+  )
+);
+
+// POST /api/products/:id/imagem
+// multipart/form-data, campo "imagem"
+// TODO (Passo 8): usar services/imagens.js para
+// enviar req.file para o storage da Cloud
+router.post(
+  '/:id/imagem',
+  auth('produtor'),
+  upload.single('imagem'),
+  porFazer(
+    'Upload da imagem do produto'
+  )
+);
 
 module.exports = router;
