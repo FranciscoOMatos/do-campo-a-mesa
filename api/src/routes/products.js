@@ -6,6 +6,7 @@ const auth = require('../middleware/auth');
 const produtorValidado = require('../middleware/produtorValidado');
 const porFazer = require('./_naoImplementado');
 const a = require('../utils/async');
+const erro = require('../utils/erro');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -85,7 +86,26 @@ router.get(
 );
 
 // GET /api/products/:id  -> 200 | 404
-router.get('/:id', porFazer('Detalhe de um produto'));
+router.get(
+  '/:id',
+  a(async (req, res) => {
+    const produto = await Product
+      .findById(req.params.id)
+      .populate(
+        'produtor',
+        'nome produtor.localidade produtor.nomeExploracao'
+      );
+
+    if (!produto) {
+      throw erro(
+        404,
+        'Produto não encontrado'
+      );
+    }
+
+    res.json(produto);
+  })
+);
 
 // POST /api/products  (produtor)  -> 201 + Location
 router.post(
