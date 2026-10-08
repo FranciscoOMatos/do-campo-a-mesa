@@ -9,23 +9,41 @@ export async function api(
   caminho,
   { metodo = 'GET', corpo, token } = {}
 ) {
-  const resposta = await fetch(`${API_URL}/api${caminho}`, {
-    method: metodo,
+  const eFormData =
+    corpo instanceof FormData;
 
-    headers: {
-      ...(corpo
-        ? { 'Content-Type': 'application/json' }
-        : {}),
+  const resposta = await fetch(
+    `${API_URL}/api${caminho}`,
+    {
+      method: metodo,
 
-      ...(token
-        ? { Authorization: `Bearer ${token}` }
-        : {})
-    },
+      headers: {
+        ...(
+          corpo && !eFormData
+            ? {
+                'Content-Type':
+                  'application/json'
+              }
+            : {}
+        ),
 
-    body: corpo
-      ? JSON.stringify(corpo)
-      : undefined
-  });
+        ...(
+          token
+            ? {
+                Authorization:
+                  `Bearer ${token}`
+              }
+            : {}
+        )
+      },
+
+      body: corpo
+        ? eFormData
+          ? corpo
+          : JSON.stringify(corpo)
+        : undefined
+    }
+  );
 
   if (resposta.status === 204) {
     return null;
@@ -37,7 +55,8 @@ export async function api(
 
   if (!resposta.ok) {
     const erro = new Error(
-      dados?.erro || `Erro ${resposta.status}`
+      dados?.erro ||
+      `Erro ${resposta.status}`
     );
 
     // Permite distinguir, por exemplo,
