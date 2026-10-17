@@ -46,10 +46,20 @@ const userSchema = new Schema({
       lng: Number
     },
 
-    validado: {
-      type: Boolean,
-      default: false
-    }
+    estadoValidacao: {
+  type: String,
+  enum: [
+    'pendente',
+    'aprovado',
+    'rejeitado'
+  ],
+  default: 'pendente'
+},
+
+validado: {
+  type: Boolean,
+  default: false
+}
   }
 }, {
   timestamps: true
