@@ -2,6 +2,8 @@
 const router = require('express').Router();
 
 const User = require('../models/User');
+const Order = require('../models/Order');
+const Auction = require('../models/Auction');
 const auth = require('../middleware/auth');
 const porFazer = require('./_naoImplementado');
 const a = require('../utils/async');
@@ -13,7 +15,46 @@ router.use(auth('admin'));
 // -> 200 { utilizadores, produtores, encomendasHoje, leiloesAtivos }
 router.get(
   '/estatisticas',
-  porFazer('Estatísticas globais')
+  a(async (req, res) => {
+    const inicioHoje = new Date();
+    inicioHoje.setHours(0, 0, 0, 0);
+
+    const inicioAmanha = new Date(inicioHoje);
+    inicioAmanha.setDate(
+      inicioAmanha.getDate() + 1
+    );
+
+    const [
+      utilizadores,
+      produtores,
+      encomendasHoje,
+      leiloesAtivos
+    ] = await Promise.all([
+      User.countDocuments(),
+
+      User.countDocuments({
+        papel: 'produtor'
+      }),
+
+      Order.countDocuments({
+        createdAt: {
+          $gte: inicioHoje,
+          $lt: inicioAmanha
+        }
+      }),
+
+      Auction.countDocuments({
+        estado: 'ativo'
+      })
+    ]);
+
+    res.json({
+      utilizadores,
+      produtores,
+      encomendasHoje,
+      leiloesAtivos
+    });
+  })
 );
 
 // GET /api/admin/produtores/pendentes
