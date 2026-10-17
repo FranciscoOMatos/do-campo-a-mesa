@@ -11,6 +11,11 @@ const Bid = require('../models/Bid');
 const sala = (leilaoId) =>
   `leilao:${leilaoId}`;
 
+const cent = (valor) =>
+  Math.round(
+    (Number(valor) + Number.EPSILON) * 100
+  ) / 100;
+
 function emitirPresenca(io, leilaoId) {
   const n =
     io.sockets.adapter.rooms.get(
@@ -113,22 +118,217 @@ module.exports = (io, socket) => {
     }
   );
 
-  socket.on(
+socket.on(
     'licitar',
-    async ({
-      leilaoId,
-      valor
-    }) => {
-      // TODO:
-      // validar e gravar a licitação
-      // numa única operação atómica.
-      void leilaoId;
-      void valor;
+    async (
+      {
+        leilaoId,
+        valor
+      } = {},
+      responder = () => {}
+    ) => {
+      const recusar = (mensagem) => {
+        socket.emit(
+          'recusada',
+          mensagem
+        );
 
-      socket.emit(
-        'recusada',
-        'Licitação ainda não implementada'
-      );
+        responder({
+          ok: false,
+          erro: mensagem
+        });
+      };
+
+      try {
+        if (
+          socket.user.papel !==
+          'comprador'
+        ) {
+          recusar(
+            'Apenas compradores podem licitar'
+          );
+          return;
+        }
+
+        if (
+          !mongoose.isValidObjectId(
+            leilaoId
+          )
+        ) {
+          recusar(
+            'Leilão inválido'
+          );
+          return;
+        }
+
+        const valorLicitacao =
+          cent(valor);
+
+        if (
+          !Number.isFinite(
+            valorLicitacao
+          ) ||
+          valorLicitacao <= 0
+        ) {
+          recusar(
+            'Valor de licitação inválido'
+          );
+          return;
+        }
+
+        const base = await Auction
+          .findById(leilaoId)
+          .select(
+            'incremento'
+          );
+
+        if (!base) {
+          recusar(
+            'Leilão não encontrado'
+          );
+          return;
+        }
+
+        const agora =
+          new Date();
+
+        const limiteAnterior =
+          cent(
+            valorLicitacao -
+            base.incremento
+          );
+
+        const leilao =
+          await Auction
+            .findOneAndUpdate(
+              {
+                _id: leilaoId,
+                estado: 'ativo',
+                terminaEm: {
+                  $gt: agora
+                },
+                'licitacaoAtual.valor': {
+                  $lte:
+                    limiteAnterior
+                }
+              },
+              {
+                $set: {
+                  licitacaoAtual: {
+                    valor:
+                      valorLicitacao,
+                    comprador:
+                      socket.user.id,
+                    nome:
+                      socket.user.nome,
+                    em: agora
+                  }
+                },
+                $inc: {
+                  numLicitacoes: 1
+                }
+              },
+              {
+                new: true,
+                runValidators: true
+              }
+            );
+
+        if (!leilao) {
+          const atual =
+            await Auction
+              .findById(
+                leilaoId
+              )
+              .select(
+                'estado terminaEm licitacaoAtual incremento'
+              );
+
+          if (!atual) {
+            recusar(
+              'Leilão não encontrado'
+            );
+            return;
+          }
+
+          if (
+            atual.estado !==
+              'ativo' ||
+            atual.terminaEm <= agora
+          ) {
+            recusar(
+              'O leilão não está ativo'
+            );
+            return;
+          }
+
+          const minimo =
+            cent(
+              atual
+                .licitacaoAtual
+                .valor +
+              atual.incremento
+            );
+
+          recusar(
+            `Licitação mínima: ${minimo.toFixed(2)} €`
+          );
+
+          return;
+        }
+
+        const bid =
+          await Bid.create({
+            leilao:
+              leilaoId,
+            comprador:
+              socket.user.id,
+            nome:
+              socket.user.nome,
+            valor:
+              valorLicitacao
+          });
+
+        const dadosBid = {
+          _id:
+            bid._id,
+          valor:
+            bid.valor,
+          comprador:
+            socket.user.id,
+          nome:
+            socket.user.nome,
+          createdAt:
+            bid.createdAt,
+          numLicitacoes:
+            leilao.numLicitacoes
+        };
+
+        io
+          .to(
+            sala(leilaoId)
+          )
+          .emit(
+            'nova-licitacao',
+            dadosBid
+          );
+
+        responder({
+          ok: true,
+          valor:
+            valorLicitacao
+        });
+      }
+      catch (err) {
+        console.error(
+          'Erro ao licitar:',
+          err
+        );
+
+        recusar(
+          'Não foi possível registar a licitação'
+        );
+      }
     }
   );
 
