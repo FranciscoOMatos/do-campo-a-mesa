@@ -1,23 +1,225 @@
 // Painel do administrador
 const router = require('express').Router();
+
+const User = require('../models/User');
+const Order = require('../models/Order');
+const Auction = require('../models/Auction');
+const Review = require('../models/Review');
 const auth = require('../middleware/auth');
-const porFazer = require('./_naoImplementado');
+const a = require('../utils/async');
+const erro = require('../utils/erro');
 
 router.use(auth('admin'));
 
-// GET /api/admin/estatisticas  -> 200 { utilizadores, produtores, encomendasHoje, leiloesAtivos }
-router.get('/estatisticas', porFazer('Estatísticas globais'));
+// GET /api/admin/estatisticas
+// -> 200 { utilizadores, produtores, encomendasHoje, leiloesAtivos }
+router.get(
+  '/estatisticas',
+  a(async (req, res) => {
+    const inicioHoje = new Date();
+    inicioHoje.setHours(0, 0, 0, 0);
 
-// GET /api/admin/produtores/pendentes  -> 200 [produtores por validar]
-router.get('/produtores/pendentes', porFazer('Produtores por validar'));
+    const inicioAmanha = new Date(inicioHoje);
+    inicioAmanha.setDate(
+      inicioAmanha.getDate() + 1
+    );
 
-// PATCH /api/admin/produtores/:id/validacao  { aprovado: true|false }  -> 200
-router.patch('/produtores/:id/validacao', porFazer('Aprovar ou rejeitar produtor'));
+    const [
+      utilizadores,
+      produtores,
+      encomendasHoje,
+      leiloesAtivos
+    ] = await Promise.all([
+      User.countDocuments(),
 
-// GET /api/admin/reviews/denunciadas  -> 200
-router.get('/reviews/denunciadas', porFazer('Avaliações denunciadas'));
+      User.countDocuments({
+        papel: 'produtor'
+      }),
 
-// PATCH /api/admin/reviews/:id  { visivel: false }  -> 200
-router.patch('/reviews/:id', porFazer('Moderar avaliação'));
+      Order.countDocuments({
+        createdAt: {
+          $gte: inicioHoje,
+          $lt: inicioAmanha
+        }
+      }),
+
+      Auction.countDocuments({
+        estado: 'ativo'
+      })
+    ]);
+
+    res.json({
+      utilizadores,
+      produtores,
+      encomendasHoje,
+      leiloesAtivos
+    });
+  })
+);
+
+// GET /api/admin/produtores/pendentes
+// Apenas produtores que ainda aguardam decisão.
+router.get(
+  '/produtores/pendentes',
+  a(async (req, res) => {
+    const produtores = await User
+      .find({
+        papel: 'produtor',
+        'produtor.validado': false,
+
+        $or: [
+          {
+            'produtor.estadoValidacao':
+              'pendente'
+          },
+          {
+            'produtor.estadoValidacao': {
+              $exists: false
+            }
+          }
+        ]
+      })
+      .sort({
+        createdAt: 1
+      });
+
+    res.json(
+      produtores.map(
+        (produtor) =>
+          produtor.publico()
+      )
+    );
+  })
+);
+
+// PATCH /api/admin/produtores/:id/validacao
+// Body: { aprovado: true | false }
+router.patch(
+  '/produtores/:id/validacao',
+  a(async (req, res) => {
+    const {
+      aprovado
+    } = req.body;
+
+    if (
+      typeof aprovado !==
+      'boolean'
+    ) {
+      throw erro(
+        400,
+        'O campo aprovado tem de ser booleano'
+      );
+    }
+
+    const produtor =
+      await User.findOneAndUpdate(
+        {
+          _id: req.params.id,
+          papel: 'produtor'
+        },
+        {
+          $set: {
+            'produtor.validado':
+              aprovado,
+
+            'produtor.estadoValidacao':
+              aprovado
+                ? 'aprovado'
+                : 'rejeitado'
+          }
+        },
+        {
+          new: true,
+          runValidators: true
+        }
+      );
+
+    if (!produtor) {
+      throw erro(
+        404,
+        'Produtor não encontrado'
+      );
+    }
+
+    res.json(
+      produtor.publico()
+    );
+  })
+);
+
+// GET /api/admin/reviews/denunciadas
+router.get(
+  '/reviews/denunciadas',
+  a(async (req, res) => {
+    const reviews = await Review
+      .find({
+        denuncias: {
+          $gt: 0
+        }
+      })
+      .sort({
+        denuncias: -1,
+        createdAt: -1
+      })
+      .populate(
+        'autor',
+        'nome email'
+      )
+      .populate(
+        'produtor',
+        'nome produtor.nomeExploracao'
+      )
+      .populate(
+        'produto',
+        'nome'
+      );
+
+    res.json(reviews);
+  })
+);
+
+// PATCH /api/admin/reviews/:id
+// Body: { visivel: true | false }
+router.patch(
+  '/reviews/:id',
+  a(async (req, res) => {
+    const {
+      visivel
+    } = req.body;
+
+    if (
+      typeof visivel !==
+      'boolean'
+    ) {
+      throw erro(
+        400,
+        'O campo visivel tem de ser booleano'
+      );
+    }
+
+    const review =
+      await Review.findByIdAndUpdate(
+        req.params.id,
+        {
+          $set: {
+            visivel
+          }
+        },
+        {
+          new: true,
+          runValidators: true
+        }
+      );
+
+    if (!review) {
+      throw erro(
+        404,
+        'Avaliação não encontrada'
+      );
+    }
+
+    res.json(review);
+  })
+);
 
 module.exports = router;

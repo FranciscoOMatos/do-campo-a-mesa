@@ -12,13 +12,43 @@ async function seed() {
 
   const passwordHash = await bcrypt.hash('password123', 12);
   const [admin, horta, mel, comprador] = await User.create([
-    { nome: 'Administração', email: 'admin@exemplo.pt', passwordHash, papel: 'admin' },
-    { nome: 'Horta da Ribeira', email: 'horta@exemplo.pt', passwordHash, papel: 'produtor',
-      produtor: { nomeExploracao: 'Horta da Ribeira', localidade: 'Ponte de Lima', validado: true } },
-    { nome: 'Mel do Soajo', email: 'mel@exemplo.pt', passwordHash, papel: 'produtor',
-      produtor: { nomeExploracao: 'Mel do Soajo', localidade: 'Arcos de Valdevez', validado: true } },
-    { nome: 'Tasca do Lima', email: 'tasca@exemplo.pt', passwordHash, papel: 'comprador' }
-  ]);
+  {
+    nome: 'Administração',
+    email: 'admin@exemplo.pt',
+    passwordHash,
+    papel: 'admin'
+  },
+  {
+    nome: 'Horta da Ribeira',
+    email: 'horta@exemplo.pt',
+    passwordHash,
+    papel: 'produtor',
+    produtor: {
+      nomeExploracao: 'Horta da Ribeira',
+      localidade: 'Ponte de Lima',
+      validado: true,
+      estadoValidacao: 'aprovado'
+    }
+  },
+  {
+    nome: 'Mel do Soajo',
+    email: 'mel@exemplo.pt',
+    passwordHash,
+    papel: 'produtor',
+    produtor: {
+      nomeExploracao: 'Mel do Soajo',
+      localidade: 'Arcos de Valdevez',
+      validado: true,
+      estadoValidacao: 'aprovado'
+    }
+  },
+  {
+    nome: 'Tasca do Lima',
+    email: 'tasca@exemplo.pt',
+    passwordHash,
+    papel: 'comprador'
+  }
+]);
 
   await Product.create([
     { produtor: horta._id, nome: 'Kiwi Hayward', categoria: 'Fruta', preco: 2.4, unidade: 'kg', stock: 300, biologico: true, epocas: ['Outono', 'Inverno'] },
