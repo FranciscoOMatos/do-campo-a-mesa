@@ -1,12 +1,15 @@
 // Leilões (a parte REST; as licitações em direto são feitas por Socket.io)
 const router = require('express').Router();
 const auth = require('../middleware/auth');
-const porFazer = require('./_naoImplementado');
 const Auction = require('../models/Auction');
 const a = require('../utils/async');
 const erro = require('../utils/erro');
 const mongoose = require('mongoose');
 const Bid = require('../models/Bid');
+const Product = require('../models/Product');
+const produtorValidado = require(
+  '../middleware/produtorValidado'
+);
 
 // GET /api/auctions?estado=ativo
 // -> 200 [leilões]
@@ -101,9 +104,169 @@ router.get(
   })
 );
 
-// POST /api/auctions  (produtor)  -> 201
-// TODO: definir licitacaoAtual.valor = precoBase e terminaEm = iniciaEm + duração
-router.post('/', auth('produtor'), porFazer('Criar leilão'));
+// POST /api/auctions
+// Produtor validado -> 201
+router.post(
+  '/',
+  auth('produtor'),
+  produtorValidado,
+  a(async (req, res) => {
+    const {
+      produto,
+      lote,
+      descricao,
+      quantidade,
+      precoBase,
+      incremento,
+      iniciaEm,
+      duracaoMinutos
+    } = req.body;
+
+    if (!lote || !String(lote).trim()) {
+      throw erro(
+        400,
+        'O lote é obrigatório'
+      );
+    }
+
+    const preco = Number(precoBase);
+    const incrementoMinimo =
+      Number(incremento);
+
+    const duracao =
+      Number(duracaoMinutos);
+
+    if (
+      !Number.isFinite(preco) ||
+      preco < 0
+    ) {
+      throw erro(
+        400,
+        'O preço base tem de ser um número igual ou superior a zero'
+      );
+    }
+
+    if (
+      !Number.isFinite(incrementoMinimo) ||
+      incrementoMinimo < 0.01
+    ) {
+      throw erro(
+        400,
+        'O incremento tem de ser igual ou superior a 0,01'
+      );
+    }
+
+    if (
+      !Number.isFinite(duracao) ||
+      duracao <= 0
+    ) {
+      throw erro(
+        400,
+        'A duração tem de ser superior a zero'
+      );
+    }
+
+    const inicio = iniciaEm
+      ? new Date(iniciaEm)
+      : new Date();
+
+    if (
+      Number.isNaN(inicio.getTime())
+    ) {
+      throw erro(
+        400,
+        'Data de início inválida'
+      );
+    }
+
+    const fim = new Date(
+      inicio.getTime() +
+        duracao * 60 * 1000
+    );
+
+    const agora = new Date();
+
+    if (fim <= agora) {
+      throw erro(
+        400,
+        'O leilão tem de terminar no futuro'
+      );
+    }
+
+    let produtoValido;
+
+    if (produto) {
+      if (
+        !mongoose.isValidObjectId(
+          produto
+        )
+      ) {
+        throw erro(
+          400,
+          'Identificador de produto inválido'
+        );
+      }
+
+      produtoValido =
+        await Product.findOne({
+          _id: produto,
+          produtor: req.user.id
+        });
+
+      if (!produtoValido) {
+        throw erro(
+          404,
+          'Produto não encontrado'
+        );
+      }
+    }
+
+    const estado =
+      inicio > agora
+        ? 'agendado'
+        : 'ativo';
+
+    const leilao =
+      await Auction.create({
+        produtor: req.user.id,
+
+        ...(produtoValido
+          ? {
+              produto:
+                produtoValido._id
+            }
+          : {}),
+
+        lote: String(lote).trim(),
+
+        descricao: descricao
+          ? String(descricao).trim()
+          : '',
+
+        quantidade: quantidade
+          ? String(quantidade).trim()
+          : '',
+
+        precoBase: preco,
+        incremento: incrementoMinimo,
+
+        licitacaoAtual: {
+          valor: preco
+        },
+
+        iniciaEm: inicio,
+        terminaEm: fim,
+        estado
+      });
+
+    res
+      .status(201)
+      .location(
+        `/api/auctions/${leilao._id}`
+      )
+      .json(leilao);
+  })
+);
 
 // GET /api/auctions/:id/bids
 // -> 200 [licitações]
