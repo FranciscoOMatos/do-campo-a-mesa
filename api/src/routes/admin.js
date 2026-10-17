@@ -4,8 +4,8 @@ const router = require('express').Router();
 const User = require('../models/User');
 const Order = require('../models/Order');
 const Auction = require('../models/Auction');
+const Review = require('../models/Review');
 const auth = require('../middleware/auth');
-const porFazer = require('./_naoImplementado');
 const a = require('../utils/async');
 const erro = require('../utils/erro');
 
@@ -150,18 +150,76 @@ router.patch(
 // GET /api/admin/reviews/denunciadas
 router.get(
   '/reviews/denunciadas',
-  porFazer(
-    'Avaliações denunciadas'
-  )
+  a(async (req, res) => {
+    const reviews = await Review
+      .find({
+        denuncias: {
+          $gt: 0
+        }
+      })
+      .sort({
+        denuncias: -1,
+        createdAt: -1
+      })
+      .populate(
+        'autor',
+        'nome email'
+      )
+      .populate(
+        'produtor',
+        'nome produtor.nomeExploracao'
+      )
+      .populate(
+        'produto',
+        'nome'
+      );
+
+    res.json(reviews);
+  })
 );
 
 // PATCH /api/admin/reviews/:id
-// Body: { visivel: false }
+// Body: { visivel: true | false }
 router.patch(
   '/reviews/:id',
-  porFazer(
-    'Moderar avaliação'
-  )
+  a(async (req, res) => {
+    const {
+      visivel
+    } = req.body;
+
+    if (
+      typeof visivel !==
+      'boolean'
+    ) {
+      throw erro(
+        400,
+        'O campo visivel tem de ser booleano'
+      );
+    }
+
+    const review =
+      await Review.findByIdAndUpdate(
+        req.params.id,
+        {
+          $set: {
+            visivel
+          }
+        },
+        {
+          new: true,
+          runValidators: true
+        }
+      );
+
+    if (!review) {
+      throw erro(
+        404,
+        'Avaliação não encontrada'
+      );
+    }
+
+    res.json(review);
+  })
 );
 
 module.exports = router;
