@@ -15,6 +15,7 @@ import ProdutosProdutor from './pages/produtor/Produtos.jsx';
 import NovoLeilao from './pages/produtor/NovoLeilao.jsx';
 import PainelAdmin from './pages/admin/Painel.jsx';
 import NaoEncontrado from './pages/NaoEncontrado.jsx';
+import Notificacoes from './components/Notificacoes.jsx';
 
 export default function App() {
   return (
@@ -27,6 +28,8 @@ export default function App() {
       </a>
 
       <Navbar />
+
+      <Notificacoes />
 
       <main
         id="conteudo"
