@@ -9,6 +9,11 @@ import {
   useLeilao
 } from '../hooks/useLeilao.js';
 
+import {
+  formatarTempo,
+  useContagem
+} from '../hooks/useContagem.js';
+
 export default function SalaLeilao() {
   const { id } = useParams();
 
@@ -22,11 +27,32 @@ export default function SalaLeilao() {
     licitacoes,
     participantes,
     erro,
+    offset,
     licitar
   } = useLeilao(id);
 
   const [valor, setValor] =
     useState('');
+
+  const alvoContagem =
+    leilao?.estado === 'agendado'
+      ? leilao.iniciaEm
+      : leilao?.estado === 'ativo'
+        ? leilao.terminaEm
+        : null;
+
+  const restante =
+    useContagem(
+      alvoContagem,
+      offset
+    );
+
+  const tituloContagem =
+    leilao?.estado === 'agendado'
+      ? 'Começa em'
+      : leilao?.estado === 'ativo'
+        ? 'Termina em'
+        : null;
 
   const podeLicitar =
     utilizador?.papel === 'comprador' &&
@@ -186,6 +212,23 @@ export default function SalaLeilao() {
       </section>
 
       <aside className="card p-3">
+        {tituloContagem && (
+          <div className="mb-3">
+            <p className="text-secondary small mb-1">
+              {tituloContagem}
+            </p>
+
+            <p
+              className="h3 mb-0"
+              aria-live="polite"
+            >
+              {formatarTempo(
+                restante
+              )}
+            </p>
+          </div>
+        )}
+
         <p className="text-secondary small mb-1">
           Licitação atual
         </p>

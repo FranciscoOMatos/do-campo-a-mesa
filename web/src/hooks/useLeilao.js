@@ -23,8 +23,8 @@ export function useLeilao(id) {
   const [erro, setErro] =
     useState('');
 
-  const [agoraServidor, setAgoraServidor] =
-    useState(null);
+  const [offset, setOffset] =
+  useState(0);
 
   useEffect(() => {
     if (!socket || !id) {
@@ -39,9 +39,12 @@ export function useLeilao(id) {
     };
 
     const onEstado = (dados) => {
-      setAgoraServidor(
-        new Date(dados.agora)
-      );
+      setOffset(
+  new Date(
+    dados.agora
+  ).getTime() -
+  Date.now()
+);
 
       setLeilao(
         dados.leilao
@@ -93,15 +96,8 @@ export function useLeilao(id) {
     };
 
     const onAberto = () => {
-      setLeilao((atual) => (
-        atual
-          ? {
-              ...atual,
-              estado: 'ativo'
-            }
-          : atual
-      ));
-    };
+  entrar();
+};
 
     const onTerminado = (dados) => {
       setLeilao((atual) => (
@@ -254,7 +250,7 @@ export function useLeilao(id) {
     licitacoes,
     participantes,
     erro,
-    agoraServidor,
+    offset,
     licitar
   };
 }
