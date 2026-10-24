@@ -5,7 +5,6 @@ const Review = require('../models/Review');
 const auth = require('../middleware/auth');
 const a = require('../utils/async');
 const erro = require('../utils/erro');
-const porFazer = require('./_naoImplementado');
 const Order = require('../models/Order');
 
 // GET /api/reviews?produtor=&produto=
@@ -237,12 +236,46 @@ router.post(
   })
 );
 
-// POST /api/reviews/:id/denuncia
-// Utilizador autenticado -> 204
 router.post(
   '/:id/denuncia',
   auth(),
-  porFazer('Denunciar avaliação')
+  a(async (req, res) => {
+    const {
+      id
+    } = req.params;
+
+    if (!Types.ObjectId.isValid(id)) {
+      throw erro(
+        400,
+        'Avaliação inválida'
+      );
+    }
+
+    const avaliacao =
+      await Review.findOneAndUpdate(
+        {
+          _id: id,
+          visivel: true
+        },
+        {
+          $inc: {
+            denuncias: 1
+          }
+        },
+        {
+          new: true
+        }
+      );
+
+    if (!avaliacao) {
+      throw erro(
+        404,
+        'Avaliação não encontrada'
+      );
+    }
+
+    res.status(204).end();
+  })
 );
 
 module.exports = router;
