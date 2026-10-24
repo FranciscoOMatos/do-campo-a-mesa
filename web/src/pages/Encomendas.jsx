@@ -5,6 +5,7 @@ import {
 
 import EstadoEncomenda from '../components/EstadoEncomenda.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useSocket } from '../context/SocketContext.jsx';
 import { api } from '../api/client.js';
 
 const euro = (valor) =>
@@ -35,6 +36,7 @@ function referencia(id) {
 
 export default function Encomendas() {
   const { token } = useAuth();
+  const socket = useSocket();
 
   const [encomendas, setEncomendas] =
     useState([]);
@@ -84,6 +86,38 @@ export default function Encomendas() {
       ativo = false;
     };
   }, [token]);
+
+  useEffect(() => {
+    if (!socket) {
+      return undefined;
+    }
+
+    function onEncomendaAtualizada(dados) {
+      setEncomendas((atuais) =>
+        atuais.map((encomenda) =>
+          String(encomenda._id) ===
+          String(dados.id)
+            ? {
+                ...encomenda,
+                estado: dados.estado
+              }
+            : encomenda
+        )
+      );
+    }
+
+    socket.on(
+      'encomenda-atualizada',
+      onEncomendaAtualizada
+    );
+
+    return () => {
+      socket.off(
+        'encomenda-atualizada',
+        onEncomendaAtualizada
+      );
+    };
+  }, [socket]);
 
   return (
     <>
