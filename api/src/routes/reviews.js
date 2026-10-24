@@ -6,6 +6,7 @@ const auth = require('../middleware/auth');
 const a = require('../utils/async');
 const erro = require('../utils/erro');
 const porFazer = require('./_naoImplementado');
+const Order = require('../models/Order');
 
 // GET /api/reviews?produtor=&produto=
 // Lista apenas avaliações visíveis.
@@ -65,12 +66,175 @@ router.get(
   })
 );
 
-// POST /api/reviews
-// Comprador, apenas após encomenda entregue -> 201
 router.post(
   '/',
   auth('comprador'),
-  porFazer('Criar avaliação')
+  a(async (req, res) => {
+    const {
+      encomenda,
+      produto,
+      classificacao,
+      comentario
+    } = req.body;
+
+    if (!encomenda) {
+      throw erro(
+        400,
+        'A encomenda é obrigatória'
+      );
+    }
+
+    if (
+      !Types.ObjectId.isValid(
+        encomenda
+      )
+    ) {
+      throw erro(
+        400,
+        'Encomenda inválida'
+      );
+    }
+
+    const valorClassificacao =
+      Number(classificacao);
+
+    if (
+      !Number.isInteger(
+        valorClassificacao
+      ) ||
+      valorClassificacao < 1 ||
+      valorClassificacao > 5
+    ) {
+      throw erro(
+        400,
+        'A classificação deve ser um número inteiro entre 1 e 5'
+      );
+    }
+
+    const produtoId =
+      produto || null;
+
+    if (
+      produtoId &&
+      !Types.ObjectId.isValid(
+        produtoId
+      )
+    ) {
+      throw erro(
+        400,
+        'Produto inválido'
+      );
+    }
+
+    const encomendaEncontrada =
+      await Order.findOne({
+        _id: encomenda,
+        comprador: req.user.id
+      });
+
+    if (!encomendaEncontrada) {
+      throw erro(
+        404,
+        'Encomenda não encontrada'
+      );
+    }
+
+    if (
+      encomendaEncontrada.estado !==
+      'entregue'
+    ) {
+      throw erro(
+        403,
+        'Só pode avaliar uma encomenda entregue'
+      );
+    }
+
+    if (produtoId) {
+      const produtoPertence =
+        encomendaEncontrada.linhas.some(
+          (linha) =>
+            linha.produto &&
+            linha.produto.toString() ===
+              produtoId
+        );
+
+      if (!produtoPertence) {
+        throw erro(
+          400,
+          'O produto não pertence à encomenda'
+        );
+      }
+    }
+
+    const existente =
+      await Review.findOne({
+        autor: req.user.id,
+        encomenda:
+          encomendaEncontrada._id,
+        produto: produtoId
+      });
+
+    if (existente) {
+      throw erro(
+        409,
+        'Esta encomenda já foi avaliada'
+      );
+    }
+
+    let avaliacao;
+
+    try {
+      avaliacao =
+        await Review.create({
+          autor: req.user.id,
+          produtor:
+            encomendaEncontrada.produtor,
+          produto: produtoId,
+          encomenda:
+            encomendaEncontrada._id,
+          classificacao:
+            valorClassificacao,
+          comentario:
+            typeof comentario ===
+              'string'
+              ? comentario.trim()
+              : ''
+        });
+    } catch (err) {
+      if (err?.code === 11000) {
+        throw erro(
+          409,
+          'Esta encomenda já foi avaliada'
+        );
+      }
+
+      throw err;
+    }
+
+    await avaliacao.populate([
+      {
+        path: 'autor',
+        select: 'nome'
+      },
+      {
+        path: 'produtor',
+        select:
+          'nome produtor.nomeExploracao produtor.localidade'
+      },
+      {
+        path: 'produto',
+        select:
+          'nome categoria preco unidade'
+      }
+    ]);
+
+    res
+      .status(201)
+      .location(
+        `/api/reviews/${avaliacao._id}`
+      )
+      .json(avaliacao);
+  })
 );
 
 // POST /api/reviews/:id/denuncia
