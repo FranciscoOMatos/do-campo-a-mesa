@@ -4,6 +4,7 @@ import Navbar from './components/Navbar.jsx';
 import RotaProtegida from './components/RotaProtegida.jsx';
 import Catalogo from './pages/Catalogo.jsx';
 import Produtor from './pages/Produtor.jsx';
+import Produtores from './pages/Produtores.jsx';
 import Leiloes from './pages/Leiloes.jsx';
 import SalaLeilao from './pages/SalaLeilao.jsx';
 import Carrinho from './pages/Carrinho.jsx';
@@ -39,10 +40,11 @@ export default function App() {
         <Routes>
           {/* Visitante */}
           <Route path="/" element={<Catalogo />} />
-          <Route path="/produtores/:id" element={<Produtor />} />
-          <Route path="/leiloes" element={<Leiloes />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/registo" element={<Registo />} />
+<Route path="/produtores" element={<Produtores />} />
+<Route path="/produtores/:id" element={<Produtor />} />
+<Route path="/leiloes" element={<Leiloes />} />
+<Route path="/login" element={<Login />} />
+<Route path="/registo" element={<Registo />} />
 
           {/* Qualquer utilizador autenticado */}
 <Route
