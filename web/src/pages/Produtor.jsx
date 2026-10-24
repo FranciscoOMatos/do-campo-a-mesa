@@ -42,6 +42,47 @@ function formatarAvaliacao(
   })`;
 }
 
+function formatarData(valor) {
+  if (!valor) {
+    return '';
+  }
+
+  return new Intl.DateTimeFormat(
+    'pt-PT',
+    {
+      dateStyle: 'medium'
+    }
+  ).format(new Date(valor));
+}
+
+function Estrelas({
+  classificacao
+}) {
+  const valor = Number(
+    classificacao
+  );
+
+  const estrelas =
+    Array.from(
+      {
+        length: 5
+      },
+      (_, indice) =>
+        indice < valor
+          ? '★'
+          : '☆'
+    ).join('');
+
+  return (
+    <span
+      aria-label={`${valor} de 5 estrelas`}
+      title={`${valor} de 5`}
+    >
+      {estrelas}
+    </span>
+  );
+}
+
 function MapaProdutor({
   localizacao,
   nome
@@ -68,7 +109,7 @@ function MapaProdutor({
   const src =
     'https://www.openstreetmap.org/export/embed.html' +
     `?bbox=${encodeURIComponent(bbox)}` +
-    `&layer=mapnik` +
+    '&layer=mapnik' +
     `&marker=${encodeURIComponent(`${lat},${lng}`)}`;
 
   return (
@@ -100,6 +141,11 @@ export default function Produtor() {
   ] = useState(null);
 
   const [
+    avaliacoes,
+    setAvaliacoes
+  ] = useState([]);
+
+  const [
     aCarregar,
     setACarregar
   ] = useState(true);
@@ -107,6 +153,11 @@ export default function Produtor() {
   const [
     erro,
     setErro
+  ] = useState('');
+
+  const [
+    erroAvaliacoes,
+    setErroAvaliacoes
   ] = useState('');
 
   useEffect(() => {
@@ -141,6 +192,40 @@ export default function Produtor() {
     }
 
     carregar();
+
+    return () => {
+      ativo = false;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarAvaliacoes() {
+      try {
+        const resposta = await api(
+          `/reviews?produtor=${id}`
+        );
+
+        if (!ativo) {
+          return;
+        }
+
+        setAvaliacoes(resposta);
+        setErroAvaliacoes('');
+      } catch (err) {
+        if (!ativo) {
+          return;
+        }
+
+        setAvaliacoes([]);
+        setErroAvaliacoes(
+          err.message
+        );
+      }
+    }
+
+    carregarAvaliacoes();
 
     return () => {
       ativo = false;
@@ -239,6 +324,7 @@ export default function Produtor() {
 
       <section
         aria-labelledby="titulo-produtos-produtor"
+        className="mb-5"
       >
         <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-end gap-2 mb-3">
           <div>
@@ -286,6 +372,111 @@ export default function Produtor() {
             Este produtor não tem produtos disponíveis neste momento.
           </p>
         )}
+      </section>
+
+      <section
+        aria-labelledby="titulo-avaliacoes"
+      >
+        <div className="mb-3">
+          <h2
+            id="titulo-avaliacoes"
+            className="h3 mb-1"
+          >
+            Avaliações
+          </h2>
+
+          <p className="texto-secundario mb-0">
+            Opiniões de compradores que já
+            receberam as suas encomendas.
+          </p>
+        </div>
+
+        {erroAvaliacoes && (
+          <div
+            className="alert alert-danger"
+            role="alert"
+          >
+            {erroAvaliacoes}
+          </div>
+        )}
+
+        {!erroAvaliacoes &&
+          avaliacoes.length === 0 && (
+            <p className="texto-secundario">
+              Este produtor ainda não tem
+              avaliações.
+            </p>
+          )}
+
+        {!erroAvaliacoes &&
+          avaliacoes.map(
+            (avaliacao) => (
+              <article
+                key={avaliacao._id}
+                className="card p-3 mb-3"
+              >
+                <div className="d-flex flex-column flex-sm-row justify-content-between gap-2">
+                  <div>
+                    <div className="fw-semibold mb-1">
+                      <Estrelas
+                        classificacao={
+                          avaliacao.classificacao
+                        }
+                      />{' '}
+                      <span>
+                        {
+                          avaliacao
+                            .classificacao
+                        }{' '}
+                        / 5
+                      </span>
+                    </div>
+
+                    <p className="mb-1">
+                      <strong>
+                        {avaliacao.autor
+                          ?.nome ||
+                          'Comprador'}
+                      </strong>
+                    </p>
+
+                    {avaliacao.produto
+                      ?.nome && (
+                      <p className="texto-secundario small mb-0">
+                        Produto:{' '}
+                        {
+                          avaliacao
+                            .produto
+                            .nome
+                        }
+                      </p>
+                    )}
+                  </div>
+
+                  <time
+                    className="texto-secundario small"
+                    dateTime={
+                      avaliacao.createdAt
+                    }
+                  >
+                    {formatarData(
+                      avaliacao.createdAt
+                    )}
+                  </time>
+                </div>
+
+                {avaliacao.comentario && (
+                  <p className="mt-3 mb-0">
+                    “
+                    {
+                      avaliacao.comentario
+                    }
+                    ”
+                  </p>
+                )}
+              </article>
+            )
+          )}
       </section>
     </>
   );
