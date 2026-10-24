@@ -1,21 +1,35 @@
+import { Link } from 'react-router-dom';
+
 // Componente reutilizável: cartão de produto do catálogo
 const euro = (valor) =>
   valor.toLocaleString('pt-PT', {
     style: 'currency',
-    currency: 'EUR',
+    currency: 'EUR'
   });
 
 export default function CartaoProduto({
   produto,
-  onAdicionar,
+  onAdicionar
 }) {
   const produtor = produto.produtor;
 
-  const temProdutor =
-    produtor?.nome ||
+  const produtorId =
+    produtor?._id ||
+    produtor?.id;
+
+  const nomeProdutor =
+    produtor?.produtor?.nomeExploracao ||
+    produtor?.nome;
+
+  const localidade =
     produtor?.produtor?.localidade;
 
-  const semStock = produto.stock === 0;
+  const temProdutor =
+    produtorId &&
+    (nomeProdutor || localidade);
+
+  const semStock =
+    produto.stock === 0;
 
   return (
     <article className="card cartao-produto h-100">
@@ -46,13 +60,18 @@ export default function CartaoProduto({
 
         {temProdutor && (
           <p className="texto-secundario small mb-2">
-            {produtor?.nome}
+            <Link
+              to={`/produtores/${produtorId}`}
+              className="link-secondary"
+            >
+              {nomeProdutor}
 
-            {produtor?.nome &&
-              produtor?.produtor?.localidade &&
-              ' · '}
+              {nomeProdutor &&
+                localidade &&
+                ' · '}
 
-            {produtor?.produtor?.localidade}
+              {localidade}
+            </Link>
           </p>
         )}
 
