@@ -7,6 +7,27 @@ const a = require('../utils/async');
 const erro = require('../utils/erro');
 const Order = require('../models/Order');
 
+// GET /api/reviews/minhas
+// Lista as avaliações do comprador autenticado.
+router.get(
+  '/minhas',
+  auth('comprador'),
+  a(async (req, res) => {
+    const avaliacoes = await Review
+      .find({
+        autor: req.user.id
+      })
+      .select(
+        '_id encomenda produto classificacao comentario visivel createdAt'
+      )
+      .sort({
+        createdAt: -1
+      });
+
+    res.json(avaliacoes);
+  })
+);
+
 // GET /api/reviews?produtor=&produto=
 // Lista apenas avaliações visíveis.
 router.get(
