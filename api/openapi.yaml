@@ -358,6 +358,63 @@ paths:
         '404':
           description: Produto não encontrado ou não pertence ao produtor autenticado
 
+  /producers:
+    get:
+      tags: [Produtores]
+      summary: Listar produtores públicos
+      description: >
+        Lista apenas produtores validados.
+        É possível filtrar por localidade através de uma pesquisa parcial,
+        sem distinção entre maiúsculas e minúsculas.
+      parameters:
+        - name: localidade
+          in: query
+          description: Texto a pesquisar na localidade do produtor.
+          schema:
+            type: string
+            example: Ponte de Lima
+
+      responses:
+        '200':
+          description: Lista de produtores validados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProducerPublic'
+
+  /producers/{id}:
+    get:
+      tags: [Produtores]
+      summary: Obter página pública de um produtor
+      description: >
+        Devolve o perfil público de um produtor validado,
+        os seus produtos com stock disponível e o resumo
+        das avaliações visíveis.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do produtor.
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: Dados públicos do produtor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProducerDetailResponse'
+
+        '404':
+          description: Produtor não encontrado ou não validado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -537,6 +594,74 @@ components:
 
             nomeExploracao:
               type: string
+
+        ProducerPublicProfile:
+      type: object
+      properties:
+        nomeExploracao:
+          type: string
+          example: Horta da Ribeira
+
+        descricao:
+          type: string
+          example: Produção local de fruta e hortícolas.
+
+        localidade:
+          type: string
+          example: Ponte de Lima
+
+        localizacao:
+          $ref: '#/components/schemas/Localizacao'
+
+    ProducerPublic:
+      type: object
+      required:
+        - id
+        - nome
+        - produtor
+      properties:
+        id:
+          type: string
+          example: 6ac0c6f03e2c9758b3931131
+
+        nome:
+          type: string
+          example: Horta da Ribeira
+
+        produtor:
+          $ref: '#/components/schemas/ProducerPublicProfile'
+
+    ProducerDetailResponse:
+      type: object
+      required:
+        - produtor
+        - produtos
+        - avaliacaoMedia
+        - totalAvaliacoes
+      properties:
+        produtor:
+          $ref: '#/components/schemas/ProducerPublic'
+
+        produtos:
+          type: array
+          description: Produtos do produtor com stock superior a zero.
+          items:
+            $ref: '#/components/schemas/Product'
+
+        avaliacaoMedia:
+          type: number
+          format: double
+          nullable: true
+          example: 4.5
+          description: >
+            Média das avaliações visíveis.
+            É null quando o produtor ainda não tem avaliações.
+
+        totalAvaliacoes:
+          type: integer
+          minimum: 0
+          example: 2
+          description: Número de avaliações visíveis do produtor.
 
     ProductInput:
       type: object
