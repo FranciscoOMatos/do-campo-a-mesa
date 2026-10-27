@@ -11,8 +11,7 @@ servers:
 paths:
   /auth/registo:
     post:
-      tags:
-        - Autenticação
+      tags: [Autenticação]
       summary: Registar utilizador
       description: >
         Cria uma conta de comprador ou produtor.
@@ -47,8 +46,7 @@ paths:
 
   /auth/login:
     post:
-      tags:
-        - Autenticação
+      tags: [Autenticação]
       summary: Iniciar sessão
       requestBody:
         required: true
@@ -73,8 +71,7 @@ paths:
 
   /auth/eu:
     get:
-      tags:
-        - Autenticação
+      tags: [Autenticação]
       summary: Obter utilizador autenticado
       security:
         - bearerAuth: []
@@ -95,13 +92,13 @@ paths:
 
   /products:
     get:
-      tags:
-        - Produtos
+      tags: [Produtos]
       summary: Pesquisar produtos
+      description: Lista produtos com pesquisa, filtros e ordenação.
       parameters:
         - name: q
           in: query
-          description: Texto no nome
+          description: Texto a pesquisar no nome do produto.
           schema:
             type: string
 
@@ -109,16 +106,54 @@ paths:
           in: query
           schema:
             type: string
+            enum:
+              - Hortícolas
+              - Fruta
+              - Mel
+              - Vinho
+              - Queijo
+              - Padaria
+              - Outros
 
         - name: precoMax
           in: query
+          description: Preço máximo do produto.
           schema:
             type: number
+            minimum: 0
 
         - name: bio
           in: query
+          description: Quando true, devolve apenas produtos biológicos.
           schema:
             type: boolean
+
+        - name: epoca
+          in: query
+          schema:
+            type: string
+            enum:
+              - Primavera
+              - Verão
+              - Outono
+              - Inverno
+
+        - name: produtor
+          in: query
+          description: ID do produtor.
+          schema:
+            type: string
+
+        - name: ordenar
+          in: query
+          description: Critério de ordenação.
+          schema:
+            type: string
+            enum:
+              - recentes
+              - preco_asc
+              - preco_desc
+            default: recentes
 
       responses:
         '200':
@@ -131,10 +166,9 @@ paths:
                   $ref: '#/components/schemas/Product'
 
     post:
-      tags:
-        - Produtos
+      tags: [Produtos]
       summary: Criar produto
-      description: Apenas produtores autenticados podem criar produtos.
+      description: Apenas produtores autenticados e validados podem criar produtos.
       security:
         - bearerAuth: []
       requestBody:
@@ -146,31 +180,52 @@ paths:
       responses:
         '201':
           description: Produto criado
+          headers:
+            Location:
+              description: URL do produto criado.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
 
         '400':
           description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
 
         '401':
           description: Token em falta ou inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
 
         '403':
-          description: Utilizador sem permissão
+          description: Utilizador sem permissão ou produtor ainda não validado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
 
   /products/{id}:
     parameters:
       - name: id
         in: path
         required: true
+        description: ID do produto.
         schema:
           type: string
 
     get:
-      tags:
-        - Produtos
+      tags: [Produtos]
       summary: Obter detalhe de um produto
       responses:
         '200':
-          description: Produto
+          description: Produto encontrado
           content:
             application/json:
               schema:
@@ -178,29 +233,61 @@ paths:
 
         '404':
           description: Produto não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
 
     put:
-      tags:
-        - Produtos
+      tags: [Produtos]
       summary: Atualizar produto
       description: Apenas o produtor proprietário pode atualizar o produto.
       security:
         - bearerAuth: []
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProductInput'
+              $ref: '#/components/schemas/ProductUpdateInput'
       responses:
         '200':
           description: Produto atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+
+        '400':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '401':
+          description: Token em falta ou inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '403':
+          description: Utilizador sem permissão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
 
         '404':
-          description: Produto não encontrado
+          description: Produto não encontrado ou não pertence ao produtor autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
 
     delete:
-      tags:
-        - Produtos
+      tags: [Produtos]
       summary: Remover produto
       description: Apenas o produtor proprietário pode remover o produto.
       security:
@@ -209,8 +296,67 @@ paths:
         '204':
           description: Produto removido
 
+        '401':
+          description: Token em falta ou inválido
+
+        '403':
+          description: Utilizador sem permissão
+
         '404':
-          description: Produto não encontrado
+          description: Produto não encontrado ou não pertence ao produtor autenticado
+
+  /products/{id}/imagem:
+    post:
+      tags: [Produtos]
+      summary: Carregar imagem de um produto
+      description: >
+        Apenas o produtor proprietário pode carregar a imagem.
+        São aceites JPEG, PNG e WebP, com tamanho máximo de 5 MB.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do produto.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - imagem
+              properties:
+                imagem:
+                  type: string
+                  format: binary
+                  description: Ficheiro JPEG, PNG ou WebP até 5 MB.
+      responses:
+        '200':
+          description: Imagem guardada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadResponse'
+
+        '400':
+          description: Imagem em falta, formato não suportado ou ficheiro demasiado grande
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '401':
+          description: Token em falta ou inválido
+
+        '403':
+          description: Utilizador sem permissão
+
+        '404':
+          description: Produto não encontrado ou não pertence ao produtor autenticado
 
 components:
   securitySchemes:
@@ -233,8 +379,6 @@ components:
           type: object
           additionalProperties:
             type: string
-          example:
-            email: Email inválido
 
     Localizacao:
       type: object
@@ -285,17 +429,14 @@ components:
       properties:
         id:
           type: string
-          example: 6ac0c6f03e2c9758b3931131
 
         nome:
           type: string
           maxLength: 100
-          example: João
 
         email:
           type: string
           format: email
-          example: joao@exemplo.pt
 
         papel:
           type: string
@@ -315,16 +456,13 @@ components:
       properties:
         nomeExploracao:
           type: string
-          example: Horta da Ribeira
 
         localidade:
           type: string
-          example: Ponte de Lima
 
         descricao:
           type: string
           maxLength: 1000
-          example: Produção local de fruta e hortícolas.
 
     RegisterInput:
       type: object
@@ -335,18 +473,15 @@ components:
       properties:
         nome:
           type: string
-          example: João Silva
 
         email:
           type: string
           format: email
-          example: joao@exemplo.pt
 
         password:
           type: string
           minLength: 8
           format: password
-          example: password123
 
         papel:
           type: string
@@ -367,12 +502,10 @@ components:
         email:
           type: string
           format: email
-          example: joao@exemplo.pt
 
         password:
           type: string
           format: password
-          example: password123
 
     AuthResponse:
       type: object
@@ -387,6 +520,24 @@ components:
         utilizador:
           $ref: '#/components/schemas/User'
 
+    ProducerSummary:
+      type: object
+      properties:
+        _id:
+          type: string
+
+        nome:
+          type: string
+
+        produtor:
+          type: object
+          properties:
+            localidade:
+              type: string
+
+            nomeExploracao:
+              type: string
+
     ProductInput:
       type: object
       required:
@@ -397,6 +548,10 @@ components:
         nome:
           type: string
           example: Kiwi Hayward
+
+        descricao:
+          type: string
+          example: Kiwi fresco de produção local.
 
         categoria:
           type: string
@@ -411,15 +566,64 @@ components:
 
         preco:
           type: number
+          minimum: 0
           example: 2.4
 
         unidade:
           type: string
+          default: kg
           example: kg
 
         stock:
-          type: integer
+          type: number
+          minimum: 0
+          default: 0
           example: 300
+
+        biologico:
+          type: boolean
+          default: false
+
+        epocas:
+          type: array
+          items:
+            type: string
+            enum:
+              - Primavera
+              - Verão
+              - Outono
+              - Inverno
+
+    ProductUpdateInput:
+      type: object
+      properties:
+        nome:
+          type: string
+
+        descricao:
+          type: string
+
+        categoria:
+          type: string
+          enum:
+            - Hortícolas
+            - Fruta
+            - Mel
+            - Vinho
+            - Queijo
+            - Padaria
+            - Outros
+
+        preco:
+          type: number
+          minimum: 0
+
+        unidade:
+          type: string
+
+        stock:
+          type: number
+          minimum: 0
 
         biologico:
           type: boolean
@@ -428,6 +632,11 @@ components:
           type: array
           items:
             type: string
+            enum:
+              - Primavera
+              - Verão
+              - Outono
+              - Inverno
 
     Product:
       allOf:
@@ -439,8 +648,27 @@ components:
               type: string
 
             produtor:
-              type: string
-              description: ID do produtor ou objeto populado
+              oneOf:
+                - type: string
+                - $ref: '#/components/schemas/ProducerSummary'
 
             imagemUrl:
               type: string
+              nullable: true
+
+            createdAt:
+              type: string
+              format: date-time
+
+            updatedAt:
+              type: string
+              format: date-time
+
+    ImageUploadResponse:
+      type: object
+      required:
+        - imagemUrl
+      properties:
+        imagemUrl:
+          type: string
+          example: http://localhost:3000/uploads/exemplo.jpg
