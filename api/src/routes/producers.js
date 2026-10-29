@@ -5,6 +5,7 @@ const { Types } = require('mongoose');
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Review = require('../models/Review');
+const auth = require('../middleware/auth');
 const a = require('../utils/async');
 const erro = require('../utils/erro');
 
@@ -64,6 +65,144 @@ router.get(
 
     res.json(
       produtores.map(perfilPublico)
+    );
+  })
+);
+
+// PATCH /api/producers/me
+// Permite ao produtor editar os dados
+// da sua própria página pública.
+router.patch(
+  '/me',
+  auth('produtor'),
+  a(async (req, res) => {
+    const {
+      nomeExploracao,
+      descricao,
+      localidade,
+      localizacao
+    } = req.body;
+
+    const alteracoes = {};
+
+    if (nomeExploracao !== undefined) {
+      const valor =
+        String(nomeExploracao).trim();
+
+      if (!valor) {
+        throw erro(
+          400,
+          'O nome da exploração é obrigatório'
+        );
+      }
+
+      alteracoes[
+        'produtor.nomeExploracao'
+      ] = valor;
+    }
+
+    if (descricao !== undefined) {
+      const valor =
+        String(descricao).trim();
+
+      if (valor.length > 1000) {
+        throw erro(
+          400,
+          'A descrição não pode ultrapassar 1000 caracteres'
+        );
+      }
+
+      alteracoes[
+        'produtor.descricao'
+      ] = valor;
+    }
+
+    if (localidade !== undefined) {
+      const valor =
+        String(localidade).trim();
+
+      if (!valor) {
+        throw erro(
+          400,
+          'A localidade é obrigatória'
+        );
+      }
+
+      alteracoes[
+        'produtor.localidade'
+      ] = valor;
+    }
+
+    if (localizacao !== undefined) {
+      const lat =
+        Number(localizacao?.lat);
+
+      const lng =
+        Number(localizacao?.lng);
+
+      if (
+        !Number.isFinite(lat) ||
+        lat < -90 ||
+        lat > 90
+      ) {
+        throw erro(
+          400,
+          'A latitude tem de estar entre -90 e 90'
+        );
+      }
+
+      if (
+        !Number.isFinite(lng) ||
+        lng < -180 ||
+        lng > 180
+      ) {
+        throw erro(
+          400,
+          'A longitude tem de estar entre -180 e 180'
+        );
+      }
+
+      alteracoes[
+        'produtor.localizacao'
+      ] = {
+        lat,
+        lng
+      };
+    }
+
+    if (
+      Object.keys(alteracoes).length === 0
+    ) {
+      throw erro(
+        400,
+        'Não foram enviados dados para atualizar'
+      );
+    }
+
+    const produtor =
+      await User.findOneAndUpdate(
+        {
+          _id: req.user.id,
+          papel: 'produtor'
+        },
+        {
+          $set: alteracoes
+        },
+        {
+          new: true,
+          runValidators: true
+        }
+      );
+
+    if (!produtor) {
+      throw erro(
+        404,
+        'Produtor não encontrado'
+      );
+    }
+
+    res.json(
+      produtor.publico()
     );
   })
 );

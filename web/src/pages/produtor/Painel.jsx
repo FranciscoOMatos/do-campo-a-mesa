@@ -210,20 +210,27 @@ export default function PainelProdutor() {
   </h1>
 
   <div className="d-flex flex-wrap gap-2">
-    <Link
-      to="/produtor/produtos"
-      className="btn btn-outline-success"
-    >
-      Gerir produtos
-    </Link>
+  <Link
+    to="/produtor/perfil"
+    className="btn btn-outline-secondary"
+  >
+    Editar página pública
+  </Link>
 
-    <Link
-      to="/produtor/leiloes/novo"
-      className="btn btn-success"
-    >
-      Criar leilão
-    </Link>
-  </div>
+  <Link
+    to="/produtor/produtos"
+    className="btn btn-outline-success"
+  >
+    Gerir produtos
+  </Link>
+
+  <Link
+    to="/produtor/leiloes/novo"
+    className="btn btn-success"
+  >
+    Criar leilão
+  </Link>
+</div>
 </div>
 
       <section
