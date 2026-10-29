@@ -599,6 +599,172 @@ paths:
               schema:
                 $ref: '#/components/schemas/Erro'
 
+  /auctions:
+    get:
+      tags: [Leilões]
+      summary: Listar leilões
+      description: >
+        Lista os leilões existentes, opcionalmente filtrados pelo estado.
+        Os resultados são ordenados pela data de início.
+      parameters:
+        - name: estado
+          in: query
+          description: Estado do leilão.
+          schema:
+            type: string
+            enum:
+              - agendado
+              - ativo
+              - terminado
+
+      responses:
+        '200':
+          description: Lista de leilões
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Auction'
+
+        '400':
+          description: Estado de leilão inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+    post:
+      tags: [Leilões]
+      summary: Criar leilão
+      description: >
+        Cria um novo leilão. Apenas produtores autenticados e validados
+        podem criar leilões. Se a data de início estiver no futuro,
+        o leilão fica agendado; caso contrário fica ativo.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuctionCreateInput'
+      responses:
+        '201':
+          description: Leilão criado
+          headers:
+            Location:
+              description: URL do leilão criado.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Auction'
+
+        '400':
+          description: Dados do leilão inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '401':
+          description: Token em falta ou inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '403':
+          description: Utilizador sem permissão ou produtor ainda não validado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '404':
+          description: Produto associado não encontrado ou não pertence ao produtor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+  /auctions/{id}:
+    get:
+      tags: [Leilões]
+      summary: Obter detalhe de um leilão
+      description: >
+        Devolve o leilão e as 20 licitações mais recentes.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do leilão.
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: Detalhe do leilão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuctionDetailResponse'
+
+        '400':
+          description: Identificador de leilão inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '404':
+          description: Leilão não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+  /auctions/{id}/bids:
+    get:
+      tags: [Leilões]
+      summary: Listar licitações de um leilão
+      description: >
+        Lista todas as licitações do leilão, da mais recente para a mais antiga.
+        A criação de novas licitações é realizada em tempo real através de Socket.IO.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do leilão.
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: Lista de licitações
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bid'
+
+        '400':
+          description: Identificador de leilão inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '404':
+          description: Leilão não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1040,7 +1206,229 @@ components:
         updatedAt:
           type: string
           format: date-time
-          
+
+        AuctionCreateInput:
+      type: object
+      required:
+        - lote
+        - precoBase
+        - incremento
+        - duracaoMinutos
+      properties:
+        produto:
+          type: string
+          description: ID opcional de um produto pertencente ao produtor.
+
+        lote:
+          type: string
+          maxLength: 150
+          example: Caixa de Kiwi Hayward
+
+        descricao:
+          type: string
+          maxLength: 1000
+          example: Lote de kiwi fresco selecionado.
+
+        quantidade:
+          type: string
+          example: 10 kg
+
+        precoBase:
+          type: number
+          minimum: 0
+          example: 15
+
+        incremento:
+          type: number
+          minimum: 0.01
+          example: 1
+
+        iniciaEm:
+          type: string
+          format: date-time
+          description: >
+            Data de início. Quando omitida, é utilizada a data/hora atual.
+
+        duracaoMinutos:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+          example: 30
+
+    AuctionCurrentBid:
+      type: object
+      properties:
+        valor:
+          type: number
+          minimum: 0
+          example: 18
+
+        comprador:
+          type: string
+          nullable: true
+          description: ID do comprador com a licitação atual mais alta.
+
+        nome:
+          type: string
+          nullable: true
+          example: João
+
+        em:
+          type: string
+          format: date-time
+          nullable: true
+
+    AuctionProductSummary:
+      type: object
+      properties:
+        _id:
+          type: string
+
+        nome:
+          type: string
+          example: Kiwi Hayward
+
+        descricao:
+          type: string
+
+        imagemUrl:
+          type: string
+          nullable: true
+
+        unidade:
+          type: string
+          example: kg
+
+    Auction:
+      type: object
+      properties:
+        _id:
+          type: string
+
+        produtor:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/ProducerSummary'
+
+        produto:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/AuctionProductSummary'
+          nullable: true
+
+        lote:
+          type: string
+          maxLength: 150
+
+        descricao:
+          type: string
+          maxLength: 1000
+
+        quantidade:
+          type: string
+
+        precoBase:
+          type: number
+          minimum: 0
+
+        incremento:
+          type: number
+          minimum: 0.01
+
+        licitacaoAtual:
+          $ref: '#/components/schemas/AuctionCurrentBid'
+
+        numLicitacoes:
+          type: integer
+          minimum: 0
+          default: 0
+
+        iniciaEm:
+          type: string
+          format: date-time
+
+        terminaEm:
+          type: string
+          format: date-time
+
+        estado:
+          type: string
+          enum:
+            - agendado
+            - ativo
+            - terminado
+
+        encomenda:
+          type: string
+          nullable: true
+          description: >
+            ID da encomenda criada quando o leilão termina com vencedor.
+
+        createdAt:
+          type: string
+          format: date-time
+
+        updatedAt:
+          type: string
+          format: date-time
+
+    BidBuyerSummary:
+      type: object
+      properties:
+        _id:
+          type: string
+
+        nome:
+          type: string
+          example: João
+
+    Bid:
+      type: object
+      properties:
+        _id:
+          type: string
+
+        leilao:
+          type: string
+
+        comprador:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/BidBuyerSummary'
+
+        nome:
+          type: string
+          example: João
+          description: Nome guardado no momento da licitação.
+
+        valor:
+          type: number
+          minimum: 0
+          example: 18
+
+        createdAt:
+          type: string
+          format: date-time
+
+        updatedAt:
+          type: string
+          format: date-time
+
+    AuctionDetailResponse:
+      type: object
+      required:
+        - leilao
+        - licitacoes
+      properties:
+        leilao:
+          $ref: '#/components/schemas/Auction'
+
+        licitacoes:
+          type: array
+          description: Até às 20 licitações mais recentes.
+          items:
+            $ref: '#/components/schemas/Bid'
+
     ProductInput:
       type: object
       required:
