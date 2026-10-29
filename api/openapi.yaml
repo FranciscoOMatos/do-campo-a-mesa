@@ -765,6 +765,184 @@ paths:
               schema:
                 $ref: '#/components/schemas/Erro'
 
+  /reviews/minhas:
+    get:
+      tags: [Avaliações]
+      summary: Listar avaliações do comprador autenticado
+      description: >
+        Lista as avaliações criadas pelo comprador autenticado.
+        Inclui avaliações que tenham sido ocultadas pelo administrador.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Avaliações do comprador
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReviewMine'
+
+        '401':
+          description: Token em falta ou inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '403':
+          description: Utilizador sem permissão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+  /reviews:
+    get:
+      tags: [Avaliações]
+      summary: Listar avaliações públicas
+      description: >
+        Lista apenas avaliações visíveis.
+        Pode filtrar por produtor e/ou produto.
+      parameters:
+        - name: produtor
+          in: query
+          description: ID do produtor.
+          schema:
+            type: string
+
+        - name: produto
+          in: query
+          description: ID do produto.
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: Lista de avaliações visíveis
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Review'
+
+        '400':
+          description: Identificador de produtor ou produto inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+    post:
+      tags: [Avaliações]
+      summary: Criar avaliação
+      description: >
+        Apenas compradores autenticados podem criar avaliações.
+        A encomenda tem de pertencer ao comprador e estar entregue.
+        Quando é indicado um produto, esse produto tem de pertencer
+        à encomenda. Não é possível repetir uma avaliação para a mesma
+        combinação de encomenda e produto.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewCreateInput'
+      responses:
+        '201':
+          description: Avaliação criada
+          headers:
+            Location:
+              description: URL da avaliação criada.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+
+        '400':
+          description: Dados inválidos ou produto não pertencente à encomenda
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '401':
+          description: Token em falta ou inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '403':
+          description: >
+            Utilizador sem permissão ou encomenda ainda não entregue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '404':
+          description: Encomenda não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '409':
+          description: Esta encomenda/produto já foi avaliada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+  /reviews/{id}/denuncia:
+    post:
+      tags: [Avaliações]
+      summary: Denunciar avaliação
+      description: >
+        Permite a qualquer utilizador autenticado denunciar uma avaliação
+        que esteja visível. Cada pedido incrementa o número de denúncias.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID da avaliação.
+          schema:
+            type: string
+
+      responses:
+        '204':
+          description: Avaliação denunciada com sucesso
+
+        '400':
+          description: Identificador de avaliação inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '401':
+          description: Token em falta ou inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '404':
+          description: Avaliação não encontrada ou não está visível
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1428,6 +1606,168 @@ components:
           description: Até às 20 licitações mais recentes.
           items:
             $ref: '#/components/schemas/Bid'
+
+        ReviewCreateInput:
+      type: object
+      required:
+        - encomenda
+        - classificacao
+      properties:
+        encomenda:
+          type: string
+          description: ID da encomenda entregue.
+
+        produto:
+          type: string
+          nullable: true
+          description: >
+            ID opcional de um produto pertencente à encomenda.
+
+        classificacao:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+
+        comentario:
+          type: string
+          maxLength: 1000
+          example: Kiwi de excelente qualidade.
+
+    ReviewAuthorSummary:
+      type: object
+      properties:
+        _id:
+          type: string
+
+        nome:
+          type: string
+          example: João
+
+    ReviewProducerSummary:
+      type: object
+      properties:
+        _id:
+          type: string
+
+        nome:
+          type: string
+          example: Horta da Ribeira
+
+        produtor:
+          type: object
+          properties:
+            nomeExploracao:
+              type: string
+              example: Horta da Ribeira
+
+            localidade:
+              type: string
+              example: Ponte de Lima
+
+    ReviewProductSummary:
+      type: object
+      properties:
+        _id:
+          type: string
+
+        nome:
+          type: string
+          example: Kiwi Hayward
+
+        categoria:
+          type: string
+          example: Fruta
+
+        preco:
+          type: number
+          example: 2.4
+
+        unidade:
+          type: string
+          example: kg
+
+    ReviewMine:
+      type: object
+      properties:
+        _id:
+          type: string
+
+        encomenda:
+          type: string
+
+        produto:
+          type: string
+          nullable: true
+
+        classificacao:
+          type: integer
+          minimum: 1
+          maximum: 5
+
+        comentario:
+          type: string
+          maxLength: 1000
+
+        visivel:
+          type: boolean
+
+        createdAt:
+          type: string
+          format: date-time
+
+    Review:
+      type: object
+      properties:
+        _id:
+          type: string
+
+        autor:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/ReviewAuthorSummary'
+
+        produtor:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/ReviewProducerSummary'
+
+        produto:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/ReviewProductSummary'
+          nullable: true
+
+        encomenda:
+          type: string
+
+        classificacao:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+
+        comentario:
+          type: string
+          maxLength: 1000
+          example: Kiwi de excelente qualidade.
+
+        denuncias:
+          type: integer
+          minimum: 0
+          default: 0
+
+        visivel:
+          type: boolean
+          default: true
+
+        createdAt:
+          type: string
+          format: date-time
+
+        updatedAt:
+          type: string
+          format: date-time
 
     ProductInput:
       type: object
