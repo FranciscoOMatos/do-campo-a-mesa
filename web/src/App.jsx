@@ -17,6 +17,7 @@ import NovoLeilao from './pages/produtor/NovoLeilao.jsx';
 import PainelAdmin from './pages/admin/Painel.jsx';
 import NaoEncontrado from './pages/NaoEncontrado.jsx';
 import Notificacoes from './components/Notificacoes.jsx';
+import EditarPerfilProdutor from './pages/produtor/EditarPerfil.jsx';
 
 export default function App() {
   return (
@@ -84,10 +85,21 @@ export default function App() {
 </Route>
 
           {/* Produtor */}
-          <Route element={<RotaProtegida papeis={['produtor']} />}>
+<Route
+  element={
+    <RotaProtegida
+      papeis={['produtor']}
+    />
+  }
+>
   <Route
     path="/produtor"
     element={<PainelProdutor />}
+  />
+
+  <Route
+    path="/produtor/perfil"
+    element={<EditarPerfilProdutor />}
   />
 
   <Route

@@ -384,6 +384,93 @@ paths:
                 items:
                   $ref: '#/components/schemas/ProducerPublic'
 
+  /producers/me:
+    patch:
+      tags: [Produtores]
+      summary: Atualizar perfil público do produtor
+      description: >
+        Permite ao produtor autenticado atualizar os dados da sua própria
+        página pública, incluindo nome da exploração, descrição, localidade
+        e coordenadas utilizadas no mapa.
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                nomeExploracao:
+                  type: string
+                  example: Horta da Ribeira
+
+                descricao:
+                  type: string
+                  maxLength: 1000
+                  example: >
+                    Exploração local dedicada à produção de produtos
+                    frescos e sazonais.
+
+                localidade:
+                  type: string
+                  example: Ponte de Lima
+
+                localizacao:
+                  type: object
+                  required:
+                    - lat
+                    - lng
+                  properties:
+                    lat:
+                      type: number
+                      minimum: -90
+                      maximum: 90
+                      example: 41.767
+
+                    lng:
+                      type: number
+                      minimum: -180
+                      maximum: 180
+                      example: -8.583
+
+      responses:
+        '200':
+          description: Perfil do produtor atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+        '400':
+          description: Dados inválidos ou nenhum campo enviado para atualização
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '401':
+          description: Token em falta ou inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '403':
+          description: Utilizador autenticado não é produtor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+        '404':
+          description: Produtor não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
   /producers/{id}:
     get:
       tags: [Produtores]
