@@ -5,9 +5,12 @@ const { Types } = require('mongoose');
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Review = require('../models/Review');
+const Order = require('../models/Order');
+const Auction = require('../models/Auction');
 const auth = require('../middleware/auth');
 const a = require('../utils/async');
 const erro = require('../utils/erro');
+
 
 const escaparRegex = (texto) =>
   texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -204,6 +207,168 @@ router.patch(
     res.json(
       produtor.publico()
     );
+  })
+);
+
+// GET /api/producers/me/stats
+// Indicadores do painel do produtor autenticado.
+router.get(
+  '/me/stats',
+  auth('produtor'),
+  a(async (req, res) => {
+    const produtorId =
+      new Types.ObjectId(req.user.id);
+
+    const [
+      totalEncomendas,
+      porTratar,
+      emProcessamento,
+      entregues,
+      resumoVendas,
+      resumoAvaliacoes,
+      leiloesAtivos,
+      totalProdutos,
+      produtosStockBaixo
+    ] = await Promise.all([
+      Order.countDocuments({
+        produtor: produtorId
+      }),
+
+      Order.countDocuments({
+        produtor: produtorId,
+        estado: 'pendente'
+      }),
+
+      Order.countDocuments({
+        produtor: produtorId,
+        estado: {
+          $in: [
+            'confirmada',
+            'pronta'
+          ]
+        }
+      }),
+
+      Order.countDocuments({
+        produtor: produtorId,
+        estado: 'entregue'
+      }),
+
+      Order.aggregate([
+        {
+          $match: {
+            produtor: produtorId,
+            estado: 'entregue'
+          }
+        },
+        {
+          $unwind: '$linhas'
+        },
+        {
+          $group: {
+            _id: null,
+            valor: {
+              $sum: {
+                $multiply: [
+                  '$linhas.precoUnit',
+                  '$linhas.quantidade'
+                ]
+              }
+            }
+          }
+        }
+      ]),
+
+      Review.aggregate([
+        {
+          $match: {
+            produtor: produtorId,
+            visivel: true
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            media: {
+              $avg: '$classificacao'
+            },
+            total: {
+              $sum: 1
+            }
+          }
+        }
+      ]),
+
+      Auction.countDocuments({
+        produtor: produtorId,
+        estado: 'ativo'
+      }),
+
+      Product.countDocuments({
+        produtor: produtorId
+      }),
+
+      Product
+        .find({
+          produtor: produtorId,
+          stock: {
+            $lte: 5
+          }
+        })
+        .select(
+          'nome stock unidade preco'
+        )
+        .sort({
+          stock: 1,
+          nome: 1
+        })
+        .lean()
+    ]);
+
+    const vendas =
+      resumoVendas[0];
+
+    const avaliacoes =
+      resumoAvaliacoes[0];
+
+    res.json({
+      encomendas: {
+        total: totalEncomendas,
+        porTratar,
+        emProcessamento,
+        entregues
+      },
+
+      vendas: {
+        encomendasEntregues:
+          entregues,
+
+        valorTotal:
+          Math.round(
+            (vendas?.valor ?? 0) * 100
+          ) / 100
+      },
+
+      avaliacoes: {
+        media:
+          avaliacoes?.media ?? null,
+
+        total:
+          avaliacoes?.total ?? 0
+      },
+
+      leiloesAtivos,
+
+      produtos: {
+        total: totalProdutos,
+
+        stockBaixo:
+          produtosStockBaixo.length,
+
+        alertasStock:
+          produtosStockBaixo
+      }
+    });
   })
 );
 
