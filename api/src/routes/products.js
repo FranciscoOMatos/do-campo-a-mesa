@@ -1,8 +1,10 @@
 // Passo 3: recurso /api/products
 const router = require('express').Router();
 const multer = require('multer');
+const { Types } = require('mongoose');
 
 const Product = require('../models/Product');
+const User = require('../models/User');
 const auth = require('../middleware/auth');
 const produtorValidado = require('../middleware/produtorValidado');
 const a = require('../utils/async');
@@ -53,7 +55,7 @@ const escolherCamposProduto = (obj) =>
       )
   );
 
-// GET /api/products?q=&categoria=&precoMax=&bio=&epoca=&produtor=&ordenar=
+// GET /api/products?q=&categoria=&precoMax=&bio=&epoca=&produtor=&localidade=&ordenar=
 // Lista produtos com pesquisa, filtros e ordenação.
 router.get(
   '/',
@@ -65,28 +67,89 @@ router.get(
       bio,
       epoca,
       produtor,
+      localidade,
       ordenar
     } = req.query;
 
     const filtro = {};
+    const condicoes = [];
 
-    if (q) {
-      filtro.nome = {
-        $regex: escaparRegex(q),
+    if (
+      typeof q === 'string' &&
+      q.trim()
+    ) {
+      const texto =
+        q.trim();
+
+      const regex = {
+        $regex: escaparRegex(texto),
         $options: 'i'
       };
+
+      const produtoresCorrespondentes =
+        await User
+          .find({
+            papel: 'produtor',
+            'produtor.validado': true,
+            $or: [
+              {
+                nome: regex
+              },
+              {
+                'produtor.nomeExploracao':
+                  regex
+              }
+            ]
+          })
+          .select('_id')
+          .lean();
+
+      const idsProdutores =
+        produtoresCorrespondentes.map(
+          (item) => item._id
+        );
+
+      condicoes.push({
+        $or: [
+          {
+            nome: regex
+          },
+          {
+            descricao: regex
+          },
+          {
+            produtor: {
+              $in: idsProdutores
+            }
+          }
+        ]
+      });
     }
 
     if (
       categoria &&
       categoria !== 'Todos'
     ) {
-      filtro.categoria = categoria;
+      filtro.categoria =
+        categoria;
     }
 
     if (precoMax) {
+      const valor =
+        Number(precoMax);
+
+      if (
+        !Number.isFinite(valor) ||
+        valor < 0
+      ) {
+        throw erro(
+          400,
+          'O preço máximo é inválido'
+        );
+      }
+
       filtro.preco = {
-        $lte: Number(precoMax)
+        $lte: valor
       };
     }
 
@@ -101,19 +164,67 @@ router.get(
     }
 
     if (produtor) {
-      filtro.produtor = produtor;
+      if (
+        !Types.ObjectId.isValid(
+          produtor
+        )
+      ) {
+        throw erro(
+          400,
+          'O produtor indicado é inválido'
+        );
+      }
+
+      condicoes.push({
+        produtor
+      });
     }
 
-    const lista = await Product
-      .find(filtro)
-      .sort(
-        ORDENACAO[ordenar] ||
-        ORDENACAO.recentes
-      )
-      .populate(
-        'produtor',
-        'nome produtor.localidade produtor.nomeExploracao'
-      );
+    if (
+      typeof localidade === 'string' &&
+      localidade.trim()
+    ) {
+      const produtoresLocalidade =
+        await User
+          .find({
+            papel: 'produtor',
+            'produtor.validado': true,
+            'produtor.localidade': {
+              $regex: escaparRegex(
+                localidade.trim()
+              ),
+              $options: 'i'
+            }
+          })
+          .select('_id')
+          .lean();
+
+      condicoes.push({
+        produtor: {
+          $in:
+            produtoresLocalidade.map(
+              (item) => item._id
+            )
+        }
+      });
+    }
+
+    if (condicoes.length > 0) {
+      filtro.$and =
+        condicoes;
+    }
+
+    const lista =
+      await Product
+        .find(filtro)
+        .sort(
+          ORDENACAO[ordenar] ||
+          ORDENACAO.recentes
+        )
+        .populate(
+          'produtor',
+          'nome produtor.localidade produtor.nomeExploracao'
+        );
 
     res.json(lista);
   })

@@ -1,10 +1,27 @@
 // Visitante: catálogo com pesquisa e filtros
-import { useEffect, useState } from 'react';
-import CartaoProduto from '../components/CartaoProduto.jsx';
-import { useCarrinho } from '../context/CarrinhoContext.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
-import { api, USAR_DADOS_SIMULADOS } from '../api/client.js';
-import produtosSimulados from '../data/produtos.json';
+import {
+  useEffect,
+  useState
+} from 'react';
+
+import CartaoProduto
+  from '../components/CartaoProduto.jsx';
+
+import {
+  useCarrinho
+} from '../context/CarrinhoContext.jsx';
+
+import {
+  useAuth
+} from '../context/AuthContext.jsx';
+
+import {
+  api,
+  USAR_DADOS_SIMULADOS
+} from '../api/client.js';
+
+import produtosSimulados
+  from '../data/produtos.json';
 
 const CATEGORIAS = [
   'Todos',
@@ -14,7 +31,7 @@ const CATEGORIAS = [
   'Vinho',
   'Queijo',
   'Padaria',
-  'Outros',
+  'Outros'
 ];
 
 const EPOCAS = [
@@ -22,13 +39,22 @@ const EPOCAS = [
   'Primavera',
   'Verão',
   'Outono',
-  'Inverno',
+  'Inverno'
 ];
 
 const ORDENACOES = [
-  { valor: 'recentes', texto: 'Mais recentes' },
-  { valor: 'preco_asc', texto: 'Preço: menor para maior' },
-  { valor: 'preco_desc', texto: 'Preço: maior para menor' },
+  {
+    valor: 'recentes',
+    texto: 'Mais recentes'
+  },
+  {
+    valor: 'preco_asc',
+    texto: 'Preço: menor para maior'
+  },
+  {
+    valor: 'preco_desc',
+    texto: 'Preço: maior para menor'
+  }
 ];
 
 const FILTRO_INICIAL = {
@@ -37,124 +63,324 @@ const FILTRO_INICIAL = {
   bio: false,
   epoca: 'Todas',
   precoMax: '',
-  ordenar: 'recentes',
+  produtor: '',
+  localidade: '',
+  ordenar: 'recentes'
 };
 
-export default function Catalogo() {
-  const [produtos, setProdutos] = useState([]);
-  const [filtro, setFiltro] = useState(FILTRO_INICIAL);
-  const [erro, setErro] = useState('');
+function nomeProdutor(produtor) {
+  return (
+    produtor?.produtor
+      ?.nomeExploracao ||
+    produtor?.nome ||
+    ''
+  );
+}
 
-  const carrinho = useCarrinho();
-  const { utilizador } = useAuth();
+function localidadeProdutor(produtor) {
+  return (
+    produtor?.produtor
+      ?.localidade ||
+    ''
+  );
+}
+
+export default function Catalogo() {
+  const [
+    produtos,
+    setProdutos
+  ] = useState([]);
+
+  const [
+    produtores,
+    setProdutores
+  ] = useState([]);
+
+  const [
+    filtro,
+    setFiltro
+  ] = useState(FILTRO_INICIAL);
+
+  const [
+    erro,
+    setErro
+  ] = useState('');
+
+  const carrinho =
+    useCarrinho();
+
+  const {
+    utilizador
+  } = useAuth();
 
   useEffect(() => {
     if (USAR_DADOS_SIMULADOS) {
-      let filtrados = produtosSimulados.filter((produto) => {
-        const correspondePesquisa = produto.nome
-          .toLowerCase()
-          .includes(filtro.q.trim().toLowerCase());
+      return;
+    }
 
-        const correspondeCategoria =
-          filtro.categoria === 'Todos' ||
-          produto.categoria === filtro.categoria;
+    let ativo = true;
 
-        const correspondeBiologico =
-          !filtro.bio || produto.biologico;
-
-        const correspondeEpoca =
-          filtro.epoca === 'Todas' ||
-          produto.epocas?.includes(filtro.epoca);
-
-        const correspondePreco =
-          filtro.precoMax === '' ||
-          produto.preco <= Number(filtro.precoMax);
-
-        return (
-          correspondePesquisa &&
-          correspondeCategoria &&
-          correspondeBiologico &&
-          correspondeEpoca &&
-          correspondePreco
-        );
+    api('/producers')
+      .then((dados) => {
+        if (ativo) {
+          setProdutores(dados);
+        }
+      })
+      .catch(() => {
+        if (ativo) {
+          setProdutores([]);
+        }
       });
 
-      if (filtro.ordenar === 'preco_asc') {
-        filtrados = [...filtrados].sort(
-          (a, b) => a.preco - b.preco,
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (USAR_DADOS_SIMULADOS) {
+      const pesquisa =
+        filtro.q
+          .trim()
+          .toLowerCase();
+
+      const localidade =
+        filtro.localidade
+          .trim()
+          .toLowerCase();
+
+      let filtrados =
+        produtosSimulados.filter(
+          (produto) => {
+            const nome =
+              produto.nome
+                ?.toLowerCase() ||
+              '';
+
+            const descricao =
+              produto.descricao
+                ?.toLowerCase() ||
+              '';
+
+            const produtorNome =
+              nomeProdutor(
+                produto.produtor
+              ).toLowerCase();
+
+            const produtorLocalidade =
+              localidadeProdutor(
+                produto.produtor
+              ).toLowerCase();
+
+            const produtorId =
+              produto.produtor?._id ||
+              produto.produtor?.id ||
+              '';
+
+            const correspondePesquisa =
+              !pesquisa ||
+              nome.includes(
+                pesquisa
+              ) ||
+              descricao.includes(
+                pesquisa
+              ) ||
+              produtorNome.includes(
+                pesquisa
+              );
+
+            const correspondeCategoria =
+              filtro.categoria ===
+                'Todos' ||
+              produto.categoria ===
+                filtro.categoria;
+
+            const correspondeBiologico =
+              !filtro.bio ||
+              produto.biologico;
+
+            const correspondeEpoca =
+              filtro.epoca ===
+                'Todas' ||
+              produto.epocas?.includes(
+                filtro.epoca
+              );
+
+            const correspondePreco =
+              filtro.precoMax ===
+                '' ||
+              produto.preco <=
+                Number(
+                  filtro.precoMax
+                );
+
+            const correspondeProdutor =
+              !filtro.produtor ||
+              produtorId ===
+                filtro.produtor;
+
+            const correspondeLocalidade =
+              !localidade ||
+              produtorLocalidade
+                .includes(
+                  localidade
+                );
+
+            return (
+              correspondePesquisa &&
+              correspondeCategoria &&
+              correspondeBiologico &&
+              correspondeEpoca &&
+              correspondePreco &&
+              correspondeProdutor &&
+              correspondeLocalidade
+            );
+          }
+        );
+
+      if (
+        filtro.ordenar ===
+        'preco_asc'
+      ) {
+        filtrados = [
+          ...filtrados
+        ].sort(
+          (a, b) =>
+            a.preco - b.preco
         );
       }
 
-      if (filtro.ordenar === 'preco_desc') {
-        filtrados = [...filtrados].sort(
-          (a, b) => b.preco - a.preco,
+      if (
+        filtro.ordenar ===
+        'preco_desc'
+      ) {
+        filtrados = [
+          ...filtrados
+        ].sort(
+          (a, b) =>
+            b.preco - a.preco
         );
       }
 
       setProdutos(filtrados);
       setErro('');
+
       return;
     }
 
-    const parametros = new URLSearchParams();
+    const parametros =
+      new URLSearchParams();
 
     if (filtro.q.trim()) {
-      parametros.set('q', filtro.q.trim());
+      parametros.set(
+        'q',
+        filtro.q.trim()
+      );
     }
 
-    if (filtro.categoria !== 'Todos') {
-      parametros.set('categoria', filtro.categoria);
+    if (
+      filtro.categoria !==
+      'Todos'
+    ) {
+      parametros.set(
+        'categoria',
+        filtro.categoria
+      );
     }
 
-    if (filtro.precoMax !== '') {
-      parametros.set('precoMax', filtro.precoMax);
+    if (
+      filtro.precoMax !== ''
+    ) {
+      parametros.set(
+        'precoMax',
+        filtro.precoMax
+      );
     }
 
     if (filtro.bio) {
-      parametros.set('bio', 'true');
+      parametros.set(
+        'bio',
+        'true'
+      );
     }
 
-    if (filtro.epoca !== 'Todas') {
-      parametros.set('epoca', filtro.epoca);
+    if (
+      filtro.epoca !==
+      'Todas'
+    ) {
+      parametros.set(
+        'epoca',
+        filtro.epoca
+      );
+    }
+
+    if (filtro.produtor) {
+      parametros.set(
+        'produtor',
+        filtro.produtor
+      );
+    }
+
+    if (
+      filtro.localidade.trim()
+    ) {
+      parametros.set(
+        'localidade',
+        filtro.localidade.trim()
+      );
     }
 
     if (filtro.ordenar) {
-      parametros.set('ordenar', filtro.ordenar);
+      parametros.set(
+        'ordenar',
+        filtro.ordenar
+      );
     }
 
-    api(`/products?${parametros.toString()}`)
+    api(
+      `/products?${parametros.toString()}`
+    )
       .then((dados) => {
         setProdutos(dados);
         setErro('');
       })
-      .catch((e) => {
-        setErro(e.message);
+      .catch((err) => {
+        setErro(err.message);
       });
   }, [filtro]);
 
-  const mudar = (campo) => (e) => {
-    const valor =
-      e.target.type === 'checkbox'
-        ? e.target.checked
-        : e.target.value;
+  const mudar =
+    (campo) =>
+      (evento) => {
+        const valor =
+          evento.target.type ===
+          'checkbox'
+            ? evento.target.checked
+            : evento.target.value;
 
-    setFiltro((atual) => ({
-      ...atual,
-      [campo]: valor,
-    }));
-  };
+        setFiltro((atual) => ({
+          ...atual,
+          [campo]: valor
+        }));
+      };
 
   const limparFiltros = () => {
-    setFiltro(FILTRO_INICIAL);
+    setFiltro(
+      FILTRO_INICIAL
+    );
   };
 
   return (
     <>
       <section className="destaque mb-4">
-        <h1>Direto de quem produz, para a sua mesa.</h1>
+        <h1>
+          Direto de quem produz,
+          para a sua mesa.
+        </h1>
 
         <p className="texto-secundario">
-          Produtores do Alto Minho. Encomende ou dispute os lotes
+          Produtores do Alto Minho.
+          Encomende ou dispute os lotes
           da época nos leilões em direto.
         </p>
 
@@ -177,14 +403,15 @@ export default function Catalogo() {
             className="visually-hidden"
             htmlFor="pesquisa"
           >
-            Pesquisar produtos
+            Pesquisar produtos ou
+            produtores
           </label>
 
           <input
             id="pesquisa"
             type="search"
             className="form-control"
-            placeholder="Pesquisar kiwi, mel, Alvarinho…"
+            placeholder="Pesquisar produto ou produtor..."
             value={filtro.q}
             onChange={mudar('q')}
           />
@@ -195,35 +422,106 @@ export default function Catalogo() {
           role="group"
           aria-label="Filtrar por categoria"
         >
-          {CATEGORIAS.map((categoria) => {
-            const selecionada =
-              filtro.categoria === categoria;
+          {CATEGORIAS.map(
+            (categoria) => {
+              const selecionada =
+                filtro.categoria ===
+                categoria;
 
-            return (
-              <button
-                key={categoria}
-                type="button"
-                className={`btn btn-sm ${
-                  selecionada
-                    ? 'btn-dark'
-                    : 'btn-outline-secondary'
-                }`}
-                aria-pressed={selecionada}
-                onClick={() =>
-                  setFiltro((atual) => ({
-                    ...atual,
-                    categoria,
-                  }))
-                }
-              >
-                {categoria}
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={categoria}
+                  type="button"
+                  className={`btn btn-sm ${
+                    selecionada
+                      ? 'btn-dark'
+                      : 'btn-outline-secondary'
+                  }`}
+                  aria-pressed={
+                    selecionada
+                  }
+                  onClick={() =>
+                    setFiltro(
+                      (atual) => ({
+                        ...atual,
+                        categoria
+                      })
+                    )
+                  }
+                >
+                  {categoria}
+                </button>
+              );
+            }
+          )}
         </div>
 
         <div className="row g-2 w-100 align-items-end">
-          <div className="col-12 col-md-4">
+          <div className="col-12 col-md-6 col-lg-3">
+            <label
+              htmlFor="produtor"
+              className="form-label"
+            >
+              Produtor
+            </label>
+
+            <select
+              id="produtor"
+              className="form-select"
+              value={
+                filtro.produtor
+              }
+              onChange={
+                mudar('produtor')
+              }
+            >
+              <option value="">
+                Todos os produtores
+              </option>
+
+              {produtores.map(
+                (produtor) => (
+                  <option
+                    key={
+                      produtor.id
+                    }
+                    value={
+                      produtor.id
+                    }
+                  >
+                    {produtor
+                      .produtor
+                      ?.nomeExploracao ||
+                      produtor.nome}
+                  </option>
+                )
+              )}
+            </select>
+          </div>
+
+          <div className="col-12 col-md-6 col-lg-3">
+            <label
+              htmlFor="localidade"
+              className="form-label"
+            >
+              Localidade
+            </label>
+
+            <input
+              id="localidade"
+              type="search"
+              className="form-control"
+              placeholder="Ex.: Ponte de Lima"
+              value={
+                filtro.localidade
+              }
+              onChange={
+                mudar('localidade')
+              }
+            />
+          </div>
+
+          <div className="col-12 col-md-6 col-lg-3">
             <label
               htmlFor="epoca"
               className="form-label"
@@ -234,21 +532,27 @@ export default function Catalogo() {
             <select
               id="epoca"
               className="form-select"
-              value={filtro.epoca}
-              onChange={mudar('epoca')}
+              value={
+                filtro.epoca
+              }
+              onChange={
+                mudar('epoca')
+              }
             >
-              {EPOCAS.map((epoca) => (
-                <option
-                  key={epoca}
-                  value={epoca}
-                >
-                  {epoca}
-                </option>
-              ))}
+              {EPOCAS.map(
+                (epoca) => (
+                  <option
+                    key={epoca}
+                    value={epoca}
+                  >
+                    {epoca}
+                  </option>
+                )
+              )}
             </select>
           </div>
 
-          <div className="col-12 col-md-4">
+          <div className="col-12 col-md-6 col-lg-3">
             <label
               htmlFor="precoMax"
               className="form-label"
@@ -257,7 +561,9 @@ export default function Catalogo() {
             </label>
 
             <div className="input-group">
-              <span className="input-group-text">€</span>
+              <span className="input-group-text">
+                €
+              </span>
 
               <input
                 id="precoMax"
@@ -266,13 +572,19 @@ export default function Catalogo() {
                 min="0"
                 step="0.01"
                 placeholder="Sem limite"
-                value={filtro.precoMax}
-                onChange={mudar('precoMax')}
+                value={
+                  filtro.precoMax
+                }
+                onChange={
+                  mudar('precoMax')
+                }
               />
             </div>
           </div>
+        </div>
 
-          <div className="col-12 col-md-4">
+        <div className="row g-2 w-100 align-items-end">
+          <div className="col-12 col-md-6">
             <label
               htmlFor="ordenar"
               className="form-label"
@@ -283,49 +595,66 @@ export default function Catalogo() {
             <select
               id="ordenar"
               className="form-select"
-              value={filtro.ordenar}
-              onChange={mudar('ordenar')}
+              value={
+                filtro.ordenar
+              }
+              onChange={
+                mudar('ordenar')
+              }
             >
-              {ORDENACOES.map((opcao) => (
-                <option
-                  key={opcao.valor}
-                  value={opcao.valor}
-                >
-                  {opcao.texto}
-                </option>
-              ))}
+              {ORDENACOES.map(
+                (opcao) => (
+                  <option
+                    key={
+                      opcao.valor
+                    }
+                    value={
+                      opcao.valor
+                    }
+                  >
+                    {opcao.texto}
+                  </option>
+                )
+              )}
             </select>
           </div>
-        </div>
 
-        <div className="d-flex flex-wrap align-items-center gap-3 w-100">
-          <div className="form-check mb-0">
-            <input
-              id="bio"
-              className="form-check-input"
-              type="checkbox"
-              checked={filtro.bio}
-              onChange={mudar('bio')}
-            />
+          <div className="col-12 col-md-6">
+            <div className="d-flex flex-wrap align-items-center gap-3 h-100 pb-2">
+              <div className="form-check mb-0">
+                <input
+                  id="bio"
+                  className="form-check-input"
+                  type="checkbox"
+                  checked={
+                    filtro.bio
+                  }
+                  onChange={
+                    mudar('bio')
+                  }
+                />
 
-            <label
-              className="form-check-label"
-              htmlFor="bio"
-            >
-              Só biológico
-            </label>
+                <label
+                  className="form-check-label"
+                  htmlFor="bio"
+                >
+                  Só biológico
+                </label>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={
+                  limparFiltros
+                }
+              >
+                Limpar filtros
+              </button>
+            </div>
           </div>
-
-          <button
-            type="button"
-            className="btn btn-sm btn-outline-secondary"
-            onClick={limparFiltros}
-          >
-            Limpar filtros
-          </button>
         </div>
 
-        {/* Número de resultados também dá feedback imediato ao utilizador */}
         <p
           className="texto-secundario small mb-0"
           role="status"
@@ -358,27 +687,35 @@ export default function Catalogo() {
           Produtos
         </h2>
 
-        {produtos.map((produto) => (
-          <CartaoProduto
-            key={produto._id}
-            produto={produto}
-            onAdicionar={
-              utilizador?.papel === 'comprador'
-                ? () => carrinho.adicionar(produto)
-                : undefined
-            }
-          />
-        ))}
+        {produtos.map(
+          (produto) => (
+            <CartaoProduto
+              key={produto._id}
+              produto={produto}
+              onAdicionar={
+                utilizador?.papel ===
+                'comprador'
+                  ? () =>
+                      carrinho.adicionar(
+                        produto
+                      )
+                  : undefined
+              }
+            />
+          )
+        )}
       </section>
 
-      {produtos.length === 0 && !erro && (
-        <p
-          className="texto-secundario mt-3"
-          role="status"
-        >
-          Nenhum produto encontrado com os filtros selecionados.
-        </p>
-      )}
+      {produtos.length === 0 &&
+        !erro && (
+          <p
+            className="texto-secundario mt-3"
+            role="status"
+          >
+            Nenhum produto encontrado
+            com os filtros selecionados.
+          </p>
+        )}
     </>
   );
 }
