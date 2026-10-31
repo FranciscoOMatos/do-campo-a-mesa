@@ -14,8 +14,26 @@ module.exports = (io) => {
   });
 
   io.on('connection', (socket) => {
-    // Sala pessoal: permite notificar este utilizador (ex.: estado da encomenda)
-    socket.join(`user:${socket.user.id}`);
-    registarLeiloes(io, socket);
-  });
+  // Sala pessoal: permite notificar este utilizador
+  // (ex.: estado da encomenda).
+  socket.join(
+    `user:${socket.user.id}`
+  );
+
+  // Sala exclusiva para administradores.
+  // Permite atualizar o painel em tempo real
+  // sem expor eventos administrativos
+  // aos restantes utilizadores.
+  if (
+    socket.user.papel ===
+    'admin'
+  ) {
+    socket.join('admins');
+  }
+
+  registarLeiloes(
+    io,
+    socket
+  );
+});
 };

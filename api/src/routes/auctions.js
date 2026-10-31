@@ -259,6 +259,23 @@ router.post(
         estado
       });
 
+        if (estado === 'ativo') {
+      const io =
+        req.app.get('io');
+
+      io
+        .to('admins')
+        .emit(
+          'admin-leilao-atualizado',
+          {
+            tipo: 'aberto',
+            id: String(
+              leilao._id
+            )
+          }
+        );
+    }
+
     res
       .status(201)
       .location(
