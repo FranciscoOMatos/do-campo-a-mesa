@@ -94,13 +94,19 @@ paths:
     get:
       tags: [Produtos]
       summary: Pesquisar produtos
-      description: Lista produtos com pesquisa, filtros e ordenação.
+      description: >
+        Lista produtos com pesquisa, filtros e ordenação.
+        A pesquisa textual pode corresponder ao nome ou descrição
+        do produto e ao nome do produtor ou da exploração.
       parameters:
         - name: q
           in: query
-          description: Texto a pesquisar no nome do produto.
+          description: >
+            Texto a pesquisar no nome ou descrição do produto
+            e no nome do produtor ou da exploração.
           schema:
             type: string
+            example: Horta da Ribeira
 
         - name: categoria
           in: query
@@ -130,6 +136,7 @@ paths:
 
         - name: epoca
           in: query
+          description: Época em que o produto está disponível.
           schema:
             type: string
             enum:
@@ -143,6 +150,15 @@ paths:
           description: ID do produtor.
           schema:
             type: string
+
+        - name: localidade
+          in: query
+          description: >
+            Localidade do produtor. A pesquisa é parcial
+            e não distingue maiúsculas de minúsculas.
+          schema:
+            type: string
+            example: Ponte de Lima
 
         - name: ordenar
           in: query
@@ -165,6 +181,14 @@ paths:
                 items:
                   $ref: '#/components/schemas/Product'
 
+        '400':
+          description: >
+            Filtros inválidos, como preço máximo negativo
+            ou ID de produtor inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
     post:
       tags: [Produtos]
       summary: Criar produto
