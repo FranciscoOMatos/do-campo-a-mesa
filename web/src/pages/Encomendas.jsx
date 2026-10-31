@@ -83,6 +83,12 @@ function chaveAvaliacao(
   return `${encomendaId}:${produtoId}`;
 }
 
+function chaveAvaliacaoProdutor(
+  encomendaId
+) {
+  return `${encomendaId}:produtor`;
+}
+
 export default function Encomendas() {
   const {
     token
@@ -425,6 +431,22 @@ export default function Encomendas() {
               encomenda.estado ===
               'entregue';
 
+                        const chaveProdutor =
+              chaveAvaliacaoProdutor(
+                encomenda._id
+              );
+
+            const avaliacaoProdutor =
+              encontrarAvaliacao(
+                encomenda._id,
+                null
+              );
+
+            const formularioProdutor =
+              formularios[
+                chaveProdutor
+              ] || null;
+
             return (
               <article
                 key={
@@ -727,7 +749,214 @@ export default function Encomendas() {
                     }
                   )}
                 </ul>
+                                {entregue && (
+                  <section
+                    className="border-top pt-3 mb-3"
+                    aria-labelledby={`avaliacao-produtor-${encomenda._id}`}
+                  >
+                    <h3
+                      id={`avaliacao-produtor-${encomenda._id}`}
+                      className="h6 mb-2"
+                    >
+                      Avaliação do produtor
+                    </h3>
 
+                    <p className="texto-secundario small mb-2">
+                      Partilhe a sua experiência com{' '}
+                      <strong>
+                        {produtor}
+                      </strong>
+                      .
+                    </p>
+
+                    {avaliacaoProdutor && (
+                      <div>
+                        <span
+                          className="fw-semibold"
+                          aria-label={`${avaliacaoProdutor.classificacao} de 5 estrelas`}
+                        >
+                          {estrelas(
+                            avaliacaoProdutor
+                              .classificacao
+                          )}
+                        </span>{' '}
+
+                        <span className="texto-secundario">
+                          Produtor avaliado
+                        </span>
+
+                        {avaliacaoProdutor
+                          .comentario && (
+                          <p className="mt-2 mb-0">
+                            {
+                              avaliacaoProdutor
+                                .comentario
+                            }
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {!avaliacaoProdutor &&
+                      formularioAberto !==
+                        chaveProdutor && (
+                        <button
+                          type="button"
+                          className="btn btn-outline-primary btn-sm"
+                          onClick={() =>
+                            abrirFormulario(
+                              chaveProdutor
+                            )
+                          }
+                        >
+                          Avaliar produtor
+                        </button>
+                      )}
+
+                    {!avaliacaoProdutor &&
+                      formularioAberto ===
+                        chaveProdutor &&
+                      formularioProdutor && (
+                        <form
+                          className="mt-3"
+                          onSubmit={(
+                            event
+                          ) =>
+                            enviarAvaliacao(
+                              event,
+                              encomenda._id,
+                              null,
+                              chaveProdutor
+                            )
+                          }
+                        >
+                          <div className="mb-3">
+                            <label
+                              className="form-label"
+                              htmlFor={`classificacao-produtor-${encomenda._id}`}
+                            >
+                              Classificação
+                            </label>
+
+                            <select
+                              id={`classificacao-produtor-${encomenda._id}`}
+                              className="form-select"
+                              value={
+                                formularioProdutor
+                                  .classificacao
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                atualizarFormulario(
+                                  chaveProdutor,
+                                  'classificacao',
+                                  event.target
+                                    .value
+                                )
+                              }
+                            >
+                              <option value="5">
+                                5 - Excelente
+                              </option>
+
+                              <option value="4">
+                                4 - Muito bom
+                              </option>
+
+                              <option value="3">
+                                3 - Bom
+                              </option>
+
+                              <option value="2">
+                                2 - Razoável
+                              </option>
+
+                              <option value="1">
+                                1 - Mau
+                              </option>
+                            </select>
+                          </div>
+
+                          <div className="mb-3">
+                            <label
+                              className="form-label"
+                              htmlFor={`comentario-produtor-${encomenda._id}`}
+                            >
+                              Comentário
+                            </label>
+
+                            <textarea
+                              id={`comentario-produtor-${encomenda._id}`}
+                              className="form-control"
+                              rows="3"
+                              maxLength="1000"
+                              placeholder="Conte como foi a sua experiência com este produtor..."
+                              value={
+                                formularioProdutor
+                                  .comentario
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                atualizarFormulario(
+                                  chaveProdutor,
+                                  'comentario',
+                                  event.target
+                                    .value
+                                )
+                              }
+                            />
+                          </div>
+
+                          {errosAvaliacao[
+                            chaveProdutor
+                          ] && (
+                            <div
+                              className="alert alert-danger py-2"
+                              role="alert"
+                            >
+                              {
+                                errosAvaliacao[
+                                  chaveProdutor
+                                ]
+                              }
+                            </div>
+                          )}
+
+                          <div className="d-flex flex-wrap gap-2">
+                            <button
+                              type="submit"
+                              className="btn btn-primary btn-sm"
+                              disabled={
+                                aEnviar ===
+                                chaveProdutor
+                              }
+                            >
+                              {aEnviar ===
+                              chaveProdutor
+                                ? 'A enviar...'
+                                : 'Enviar avaliação'}
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-outline-secondary btn-sm"
+                              onClick={
+                                fecharFormulario
+                              }
+                              disabled={
+                                aEnviar ===
+                                chaveProdutor
+                              }
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                  </section>
+                )}
                 <div className="d-flex flex-column flex-md-row justify-content-between gap-3">
                   <div>
                     <p className="mb-1">
