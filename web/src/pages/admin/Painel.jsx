@@ -5,10 +5,23 @@ import {
 } from 'react';
 
 import { api } from '../../api/client.js';
-import { useAuth } from '../../context/AuthContext.jsx';
+
+import {
+  useAuth
+} from '../../context/AuthContext.jsx';
+
+import {
+  useSocket
+} from '../../context/SocketContext.jsx';
+
+import CartaoLeilao
+  from '../../components/CartaoLeilao.jsx';
 
 export default function PainelAdmin() {
   const { token } = useAuth();
+
+  const socket =
+    useSocket();
 
   const [estatisticas, setEstatisticas] =
     useState(null);
@@ -18,6 +31,11 @@ export default function PainelAdmin() {
 
   const [reviews, setReviews] =
     useState([]);
+
+  const [
+    leiloesAtivos,
+    setLeiloesAtivos
+  ] = useState([]);
 
   const [aCarregar, setACarregar] =
     useState(true);
@@ -42,7 +60,8 @@ export default function PainelAdmin() {
       const [
         dadosEstatisticas,
         dadosProdutores,
-        dadosReviews
+        dadosReviews,
+        dadosLeiloes
       ] = await Promise.all([
         api(
           '/admin/estatisticas',
@@ -57,6 +76,10 @@ export default function PainelAdmin() {
         api(
           '/admin/reviews/denunciadas',
           { token }
+        ),
+
+        api(
+          '/auctions?estado=ativo'
         )
       ]);
 
@@ -71,6 +94,10 @@ export default function PainelAdmin() {
       setReviews(
         dadosReviews
       );
+
+      setLeiloesAtivos(
+        dadosLeiloes
+      );
     } catch (err) {
       setErro(err.message);
     } finally {
@@ -81,6 +108,52 @@ export default function PainelAdmin() {
   useEffect(() => {
     carregarDados();
   }, [carregarDados]);
+
+  useEffect(() => {
+    if (!socket) {
+      return undefined;
+    }
+
+    const atualizarLeiloes =
+      async () => {
+        try {
+          const dados =
+            await api(
+              '/auctions?estado=ativo'
+            );
+
+          setLeiloesAtivos(
+            dados
+          );
+
+          setEstatisticas(
+            (atuais) =>
+              atuais
+                ? {
+                    ...atuais,
+                    leiloesAtivos:
+                      dados.length
+                  }
+                : atuais
+          );
+        } catch {
+          // Mantém os últimos dados válidos
+          // caso a atualização em tempo real falhe.
+        }
+      };
+
+    socket.on(
+      'admin-leilao-atualizado',
+      atualizarLeiloes
+    );
+
+    return () => {
+      socket.off(
+        'admin-leilao-atualizado',
+        atualizarLeiloes
+      );
+    };
+  }, [socket]);
 
   async function validarProdutor(
     produtor,
@@ -280,6 +353,49 @@ export default function PainelAdmin() {
 
       {!aCarregar && (
         <>
+          <section
+            className="mb-5"
+            aria-labelledby="titulo-leiloes-ativos"
+          >
+            <div className="d-flex justify-content-between align-items-center gap-2 mb-3">
+              <h2
+                id="titulo-leiloes-ativos"
+                className="h4 mb-0"
+              >
+                Leilões ativos
+              </h2>
+
+              <span className="badge text-bg-success">
+                {leiloesAtivos.length}
+              </span>
+            </div>
+
+            {leiloesAtivos.length === 0 ? (
+              <div className="card p-3">
+                <p className="mb-0">
+                  Não existem leilões ativos
+                  neste momento.
+                </p>
+              </div>
+            ) : (
+              <div className="row g-3">
+                {leiloesAtivos.map(
+                  (leilao) => (
+                    <div
+                      key={leilao._id}
+                      className="col-12 col-md-6 col-xl-4"
+                    >
+                      <CartaoLeilao
+                        leilao={leilao}
+                        autenticado
+                      />
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+          </section>
+
           <section
             className="mb-5"
             aria-labelledby="titulo-produtores-pendentes"

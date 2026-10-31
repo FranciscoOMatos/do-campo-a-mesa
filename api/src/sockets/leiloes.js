@@ -313,6 +313,18 @@ socket.on(
             dadosBid
           );
 
+          io
+          .to('admins')
+          .emit(
+            'admin-leilao-atualizado',
+            {
+              tipo: 'licitacao',
+              id: String(
+                leilaoId
+              )
+            }
+          );
+
         responder({
           ok: true,
           valor:

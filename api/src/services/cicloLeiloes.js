@@ -44,6 +44,18 @@ async function abrirAgendados(io) {
       .emit('aberto', {
         id: leilao._id
       });
+
+    io
+      .to('admins')
+      .emit(
+        'admin-leilao-atualizado',
+        {
+          tipo: 'aberto',
+          id: String(
+            leilao._id
+          )
+        }
+      );
   }
 }
 
@@ -160,6 +172,18 @@ async function fecharExpirados(io) {
           valor: valorFinal,
           encomenda:
             encomenda?._id ?? null
+        }
+      );
+
+    io
+      .to('admins')
+      .emit(
+        'admin-leilao-atualizado',
+        {
+          tipo: 'terminado',
+          id: String(
+            leilao._id
+          )
         }
       );
 
