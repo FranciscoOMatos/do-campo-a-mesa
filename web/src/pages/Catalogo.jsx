@@ -7,6 +7,9 @@ import {
 import CartaoProduto
   from '../components/CartaoProduto.jsx';
 
+import CartaoLeilao
+  from '../components/CartaoLeilao.jsx';
+
 import {
   useCarrinho
 } from '../context/CarrinhoContext.jsx';
@@ -97,6 +100,11 @@ export default function Catalogo() {
   ] = useState([]);
 
   const [
+    leilaoDestaque,
+    setLeilaoDestaque
+  ] = useState(null);
+
+  const [
     filtro,
     setFiltro
   ] = useState(FILTRO_INICIAL);
@@ -129,6 +137,36 @@ export default function Catalogo() {
       .catch(() => {
         if (ativo) {
           setProdutores([]);
+        }
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (USAR_DADOS_SIMULADOS) {
+      return;
+    }
+
+    let ativo = true;
+
+    api('/auctions?estado=ativo')
+      .then((dados) => {
+        if (!ativo) {
+          return;
+        }
+
+        setLeilaoDestaque(
+          dados.length > 0
+            ? dados[0]
+            : null
+        );
+      })
+      .catch(() => {
+        if (ativo) {
+          setLeilaoDestaque(null);
         }
       });
 
@@ -384,7 +422,39 @@ export default function Catalogo() {
           da época nos leilões em direto.
         </p>
 
-        {/* TODO: cartão com o leilão em direto em destaque */}
+        {leilaoDestaque && (
+          <section
+            className="mt-4"
+            aria-labelledby="titulo-leilao-destaque"
+          >
+            <div className="d-flex align-items-center gap-2 mb-3">
+              <span
+                className="badge text-bg-danger"
+                aria-hidden="true"
+              >
+                EM DIRETO
+              </span>
+
+              <h2
+                id="titulo-leilao-destaque"
+                className="h4 mb-0"
+              >
+                Leilão em destaque
+              </h2>
+            </div>
+
+            <div className="row">
+              <div className="col-12 col-md-8 col-lg-6">
+                <CartaoLeilao
+                  leilao={leilaoDestaque}
+                  autenticado={
+                    Boolean(utilizador)
+                  }
+                />
+              </div>
+            </div>
+          </section>
+        )}
       </section>
 
       <section
