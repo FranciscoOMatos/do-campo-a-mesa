@@ -130,7 +130,8 @@ export default function Produtor() {
   } = useParams();
 
   const {
-    utilizador
+    utilizador,
+    token
   } = useAuth();
 
   const carrinho = useCarrinho();
@@ -158,6 +159,21 @@ export default function Produtor() {
   const [
     erroAvaliacoes,
     setErroAvaliacoes
+  ] = useState('');
+
+  const [
+    reviewADenunciar,
+    setReviewADenunciar
+  ] = useState(null);
+
+  const [
+    reviewsDenunciadas,
+    setReviewsDenunciadas
+  ] = useState([]);
+
+  const [
+    mensagemDenuncia,
+    setMensagemDenuncia
   ] = useState('');
 
   useEffect(() => {
@@ -231,6 +247,48 @@ export default function Produtor() {
       ativo = false;
     };
   }, [id]);
+
+  async function denunciarAvaliacao(
+    avaliacao
+  ) {
+    if (!token) {
+      return;
+    }
+
+    try {
+      setReviewADenunciar(
+        avaliacao._id
+      );
+
+      setErroAvaliacoes('');
+      setMensagemDenuncia('');
+
+      await api(
+        `/reviews/${avaliacao._id}/denuncia`,
+        {
+          metodo: 'POST',
+          token
+        }
+      );
+
+      setReviewsDenunciadas(
+        (atuais) => [
+          ...atuais,
+          avaliacao._id
+        ]
+      );
+
+      setMensagemDenuncia(
+        'Avaliação denunciada com sucesso.'
+      );
+    } catch (err) {
+      setErroAvaliacoes(
+        err.message
+      );
+    } finally {
+      setReviewADenunciar(null);
+    }
+  }
 
   if (aCarregar) {
     return (
@@ -400,6 +458,15 @@ export default function Produtor() {
           </div>
         )}
 
+        {mensagemDenuncia && (
+          <div
+            className="alert alert-success"
+            role="status"
+          >
+            {mensagemDenuncia}
+          </div>
+        )}
+
         {!erroAvaliacoes &&
           avaliacoes.length === 0 && (
             <p className="texto-secundario">
@@ -474,6 +541,37 @@ export default function Produtor() {
                     ”
                   </p>
                 )}
+
+                {utilizador && (
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-danger"
+                      disabled={
+                        reviewADenunciar ===
+                          avaliacao._id ||
+                        reviewsDenunciadas.includes(
+                          avaliacao._id
+                        )
+                      }
+                      onClick={() =>
+                        denunciarAvaliacao(
+                          avaliacao
+                        )
+                      }
+                    >
+                      {reviewsDenunciadas.includes(
+                        avaliacao._id
+                      )
+                        ? 'Denunciada'
+                        : reviewADenunciar ===
+                            avaliacao._id
+                          ? 'A denunciar...'
+                          : 'Denunciar'}
+                    </button>
+                  </div>
+                )}
+
               </article>
             )
           )}
