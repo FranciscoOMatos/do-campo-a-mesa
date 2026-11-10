@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 
-// Componente reutilizável: cartão de produto do catálogo
 const euro = (valor) =>
   valor.toLocaleString('pt-PT', {
     style: 'currency',
@@ -12,6 +11,10 @@ export default function CartaoProduto({
   onAdicionar
 }) {
   const produtor = produto.produtor;
+
+  const produtoId =
+    produto._id ||
+    produto.id;
 
   const produtorId =
     produtor?._id ||
@@ -34,12 +37,17 @@ export default function CartaoProduto({
   return (
     <article className="card cartao-produto h-100">
       {produto.imagemUrl ? (
-        <img
-          src={produto.imagemUrl}
-          className="card-img-top"
-          alt={produto.nome}
-          loading="lazy"
-        />
+        <Link
+          to={`/produtos/${produtoId}`}
+          aria-label={`Ver ${produto.nome}`}
+        >
+          <img
+            src={produto.imagemUrl}
+            className="card-img-top"
+            alt={produto.nome}
+            loading="lazy"
+          />
+        </Link>
       ) : (
         <div
           className="cartao-produto__imagem"
@@ -55,7 +63,12 @@ export default function CartaoProduto({
         )}
 
         <h3 className="h6 mb-1">
-          {produto.nome}
+          <Link
+            to={`/produtos/${produtoId}`}
+            className="text-decoration-none text-reset"
+          >
+            {produto.nome}
+          </Link>
         </h3>
 
         {temProdutor && (
