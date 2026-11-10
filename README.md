@@ -1,232 +1,246 @@
 # Do Campo à Mesa
 
-Aplicação web de um mercado digital de produtores locais, desenvolvida no âmbito da unidade curricular de **Desenvolvimento Web e para a Cloud**, do Mestrado em Engenharia Informática do IPVC/ESTG.
+Plataforma web para comercialização de produtos locais, gestão de encomendas e leilões em tempo real.
 
-A plataforma aproxima produtores e consumidores, permitindo consultar produtos locais, efetuar encomendas, acompanhar produtores e participar em leilões em tempo real.
+**Unidade Curricular:** Desenvolvimento Web e para a Cloud  
+**Curso:** Mestrado em Engenharia Informática  
+**Autor:** Francisco Oliveira Matos — Nº 31406  
+**Docente:** Professor Manuel Carvalho  
+**Ano letivo:** 2026/2027
 
-## Tecnologias
+---
 
-| Área | Tecnologias |
-|---|---|
-| Frontend | React, Vite, Bootstrap 5, SASS |
-| Backend | Node.js, Express |
-| Base de dados | MongoDB com Mongoose |
-| Autenticação | JWT + bcrypt |
-| Tempo real | Socket.IO |
-| Documentação API | OpenAPI 3.0 + Swagger UI |
-| Mapas | OpenStreetMap |
-| Imagens | Armazenamento local em desenvolvimento e suporte para Azure Blob Storage |
+## 1. Visão geral
 
-## Funcionalidades
+O **Do Campo à Mesa** é uma aplicação web full-stack concebida para aproximar produtores locais e consumidores através de um catálogo de produtos, páginas públicas de produtor, encomendas e leilões em direto.
 
-A aplicação contempla quatro tipos de utilização: visitante, comprador, produtor e administrador.
+A solução foi construída como uma **Single Page Application (SPA)** em React, suportada por uma **API REST em Node.js/Express**, persistência em **MongoDB Atlas** e comunicação bidirecional através de **Socket.IO**. O sistema distingue quatro perfis funcionais — visitante, comprador, produtor e administrador — e aplica regras de autorização específicas a cada um.
 
-| Utilizador | Funcionalidades principais |
-|---|---|
-| Visitante | Consultar catálogo, pesquisar e filtrar produtos, consultar produtores, páginas públicas, mapas, avaliações e leilões |
-| Comprador | Registo/login, carrinho, encomendas, levantamento ou entrega, avaliações e participação em leilões |
-| Produtor | Gestão dos próprios produtos e imagens, perfil público, encomendas, leilões e dashboard |
-| Administrador | Validação de produtores, moderação de avaliações, estatísticas globais e acompanhamento de leilões ativos |
+Para além da aplicação principal, foi desenvolvido um **backoffice administrativo em Laravel**, como componente de valorização, seguindo o padrão MVC, com vistas Blade e utilização de Eloquent para auditoria das ações administrativas.
 
-O catálogo permite pesquisa por produto ou produtor e filtragem por categoria, produtor, localidade, época, preço máximo e produção biológica.
+O projeto foi validado com testes automáticos de ponta a ponta sobre a API e os sockets. A execução final terminou com:
 
-Cada produtor validado possui uma página pública com descrição, localização no mapa, produtos disponíveis e avaliações dos compradores.
+```text
+51 / 51 verificações a passar.
+```
 
-As encomendas apresentam os estados **Pendente**, **Confirmada**, **Pronta** e **Entregue**. Os produtores podem atualizar o estado das encomendas que lhes pertencem e os compradores podem avaliar produtos após a entrega.
+---
 
-Os leilões utilizam Socket.IO para comunicação em tempo real. As licitações são atualizadas de forma atómica no MongoDB para reduzir problemas de concorrência entre compradores.
+## 2. Principais funcionalidades
 
-## Estrutura do projeto
+### Visitante
+
+- consulta do catálogo de produtos;
+- pesquisa textual por produto/produtor;
+- filtros por categoria, produtor, localidade, época, preço máximo e produção biológica;
+- ordenação de resultados;
+- página individual de produto;
+- páginas públicas dos produtores;
+- consulta de localização e avaliações dos produtores;
+- consulta dos leilões disponíveis;
+- acesso ao login/registo quando pretende efetuar uma ação autenticada.
+
+### Comprador
+
+- registo e autenticação;
+- gestão de carrinho;
+- alteração de quantidades e remoção de produtos;
+- escolha entre levantamento no produtor e entrega ao domicílio;
+- criação e consulta de encomendas;
+- acompanhamento do estado da encomenda em tempo real;
+- avaliação de produtos após entrega;
+- avaliação do produtor após entrega;
+- denúncia de avaliações para moderação;
+- participação em leilões em direto;
+- receção de notificações de atualização e de vitória em leilões.
+
+### Produtor
+
+- registo sujeito a validação administrativa;
+- edição da página pública;
+- gestão de produtos (criação, edição e remoção);
+- gestão de stock;
+- indicadores de vendas, encomendas, avaliações e leilões;
+- processamento das encomendas através dos estados:
+  - `pendente`;
+  - `confirmada`;
+  - `pronta`;
+  - `entregue`;
+- criação de leilões;
+- acompanhamento de leilões ativos.
+
+### Administrador
+
+- autenticação com papel `admin`;
+- consulta de estatísticas globais;
+- validação/rejeição de novos produtores;
+- acompanhamento de leilões ativos;
+- listagem de avaliações denunciadas;
+- ocultação/restauro de avaliações;
+- acesso ao backoffice Laravel adicional.
+
+---
+
+## 3. Arquitetura
+
+O repositório contém três aplicações independentes:
 
 ```text
 do-campo-a-mesa/
-├── api/
-│   ├── openapi.yaml
-│   ├── uploads/
-│   └── src/
-│       ├── config/
-│       ├── middleware/
-│       ├── models/
-│       ├── routes/
-│       ├── seed/
-│       │   ├── assets/
-│       │   └── seed.js
-│       ├── services/
-│       ├── sockets/
-│       ├── app.js
-│       └── server.js
-├── web/
-│   └── src/
-│       ├── api/
-│       ├── components/
-│       ├── context/
-│       ├── hooks/
-│       ├── pages/
-│       ├── styles/
-│       └── App.jsx
-├── docs/
+├── api/          # API REST, Socket.IO, MongoDB/Mongoose e Swagger
+├── web/          # SPA React/Vite
+├── backoffice/   # Backoffice Laravel MVC + Blade + Eloquent
 └── README.md
 ```
 
-## Pré-requisitos
+### Arquitetura lógica
 
-É necessário ter instalado **Node.js 20 ou superior**, npm e acesso a uma instância MongoDB, local ou através do MongoDB Atlas.
+```mermaid
+flowchart LR
+    U[Utilizador / Browser]
+    W[SPA React + Vite]
+    A[API Node.js + Express]
+    S[Socket.IO]
+    M[(MongoDB Atlas)]
+    L[Backoffice Laravel]
+    Q[(SQLite - auditoria)]
 
-## Configuração da API
-
-Criar o ficheiro `api/.env` a partir de `api/.env.example`.
-
-Exemplo:
-
-```env
-PORT=3000
-MONGODB_URI=mongodb://localhost:27017/do-campo-a-mesa
-JWT_SECRET=trocar-por-um-segredo-longo-e-aleatorio
-JWT_EXPIRES_IN=2h
-CLIENT_URL=http://localhost:5173
-
-STORAGE_CONN=
-STORAGE_CONTAINER=produtos
+    U --> W
+    W -->|HTTP / JSON| A
+    W <-->|WebSocket| S
+    S --- A
+    A -->|Mongoose| M
+    L -->|HTTP + JWT| A
+    L -->|Eloquent| Q
 ```
 
-`STORAGE_CONN` é opcional. Sem esta variável, as imagens são armazenadas localmente em `api/uploads/`. Quando configurada, a aplicação suporta Azure Blob Storage.
+A SPA não comunica diretamente com a base de dados. Todas as regras de negócio são validadas pela API. A ligação Socket.IO utiliza a mesma identidade autenticada através de JWT.
 
-## Configuração do frontend
+O backoffice Laravel também **consome a API Node**, mantendo o MongoDB como fonte de verdade dos dados funcionais. A base SQLite do Laravel é utilizada apenas para auditoria administrativa.
 
-Criar o ficheiro `web/.env` a partir de `web/.env.example`.
+---
 
-```env
-VITE_API_URL=http://localhost:3000
-VITE_USAR_DADOS_SIMULADOS=false
-```
+## 4. Tecnologias utilizadas
 
-Na utilização normal do projeto deve ser usado:
+| Área | Tecnologia | Utilização |
+|---|---|---|
+| Frontend | React 18 | SPA, componentes e páginas |
+| Build frontend | Vite 5 | servidor de desenvolvimento e build |
+| Routing | React Router | navegação e rotas protegidas |
+| UI | Bootstrap 5 | grelha e componentes base |
+| Estilos | SASS/SCSS | variáveis, mixins e estilos próprios |
+| Backend | Node.js | runtime da API |
+| API | Express 4 | endpoints REST e middleware |
+| Tempo real | Socket.IO 4 | leilões e notificações |
+| Base de dados | MongoDB Atlas | persistência principal |
+| ODM | Mongoose 8 | schemas, validação e queries |
+| Autenticação | JWT | sessão stateless na aplicação principal |
+| Passwords | bcryptjs | hash e validação de passwords |
+| Documentação | OpenAPI 3 + Swagger UI | contrato e exploração da API |
+| Uploads | Multer | receção de imagens |
+| Storage preparado | Azure Blob Storage | armazenamento Cloud opcional |
+| Backoffice | Laravel 13 | componente administrativo adicional |
+| Views Laravel | Blade | interface do backoffice |
+| Auditoria | Eloquent + SQLite | registo de ações administrativas |
 
-```env
-VITE_USAR_DADOS_SIMULADOS=false
-```
+---
 
-para que o frontend consuma a API real.
+## 5. Frontend
 
-## Instalação
+A interface segue uma abordagem **Mobile First**, com adaptação progressiva a ecrãs maiores e utilização dos breakpoints previstos no trabalho.
 
-A partir da raiz do projeto:
-
-```bash
-npm --prefix api install
-npm --prefix web install
-```
-
-## Dados de demonstração
-
-O projeto inclui um seed completo e reproduzível.
-
-Para recriar os dados de demonstração:
-
-```bash
-npm --prefix api run seed
-```
-
-**Atenção:** o seed elimina os dados existentes das coleções utilizadas pela aplicação antes de inserir os dados de demonstração.
-
-O seed cria:
-
-| Dados | Quantidade |
-|---|---:|
-| Administradores | 1 |
-| Produtores validados | 5 |
-| Compradores | 1 |
-| Produtos | 14 |
-| Imagens de produtos | 14 |
-| Encomendas | 3 |
-| Avaliações | 3 |
-| Leilões ativos | 1 |
-| Licitações iniciais | 1 |
-
-As imagens utilizadas pelo seed encontram-se versionadas em:
+### Estrutura relevante
 
 ```text
-api/src/seed/assets/
+web/src/
+├── api/
+│   └── client.js
+├── components/
+├── context/
+│   ├── AuthContext.jsx
+│   ├── CarrinhoContext.jsx
+│   └── SocketContext.jsx
+├── hooks/
+├── pages/
+│   ├── admin/
+│   └── produtor/
+├── styles/
+├── App.jsx
+└── main.jsx
 ```
 
-Durante o seed são copiadas para `api/uploads/`, permitindo reconstruir o catálogo com imagens mesmo depois de clonar o repositório.
+### Estado global
 
-O leilão criado pelo seed permanece ativo durante **7 dias após a execução**, facilitando a demonstração da funcionalidade em tempo real.
+- **AuthContext** — utilizador autenticado e token JWT;
+- **CarrinhoContext** — itens e quantidades do carrinho;
+- **SocketContext** — ligação Socket.IO reutilizada pela aplicação.
 
-## Contas de demonstração
+### Routing
 
-Todas as contas criadas pelo seed utilizam a password:
+As rotas públicas incluem, entre outras:
+
+- `/` — catálogo;
+- `/produtos/:id` — detalhe de produto;
+- `/produtores` — produtores;
+- `/produtores/:id` — página pública do produtor;
+- `/leiloes` — listagem de leilões;
+- `/login`;
+- `/registo`.
+
+As áreas privadas são protegidas por papel através de `RotaProtegida`.
+
+### Acessibilidade
+
+Foram aplicadas medidas como:
+
+- HTML semântico;
+- ligação “Saltar para o conteúdo”;
+- textos alternativos em imagens;
+- associação de labels aos controlos;
+- utilização de `aria-live`, `role="status"` e `role="alert"` em feedback dinâmico;
+- estados visuais claros para ações e progresso de encomendas.
+
+---
+
+## 6. API REST
+
+A API encontra-se em `api/` e é executada, por omissão, na porta **3000**.
+
+Principais grupos de recursos:
 
 ```text
-password123
+/api/auth
+/api/products
+/api/producers
+/api/orders
+/api/auctions
+/api/reviews
+/api/admin
 ```
 
-| Papel | Email |
-|---|---|
-| Administrador | `admin@exemplo.pt` |
-| Produtor — Horta da Ribeira | `horta@exemplo.pt` |
-| Produtor — Mel do Soajo | `mel@exemplo.pt` |
-| Produtor — Padaria do Minho | `padaria.minho@exemplo.pt` |
-| Produtor — Queijaria Vale do Lima | `queijaria.valedolima@exemplo.pt` |
-| Produtor — Quinta do Vale do Lima | `quinta.valedolima@exemplo.pt` |
-| Comprador | `tasca@exemplo.pt` |
+### Códigos HTTP utilizados
 
-Estas credenciais destinam-se exclusivamente a desenvolvimento e demonstração.
+- `200` — consulta/alteração bem-sucedida;
+- `201` — recurso criado;
+- `204` — operação concluída sem conteúdo de resposta;
+- `400` — dados inválidos;
+- `401` — autenticação inválida/ausente;
+- `403` — utilizador autenticado sem permissão;
+- `404` — recurso inexistente ou inacessível;
+- `409` — conflito de domínio (por exemplo, stock insuficiente ou estado inválido).
 
-## Executar a aplicação
+### Swagger / OpenAPI
 
-### API
-
-```bash
-npm --prefix api run dev
-```
-
-A API fica disponível em:
-
-```text
-http://localhost:3000
-```
-
-A documentação Swagger fica disponível em:
-
-```text
-http://localhost:3000/api-docs
-```
-
-### Frontend
-
-Noutro terminal:
-
-```bash
-npm --prefix web run dev
-```
-
-A aplicação fica disponível em:
-
-```text
-http://localhost:5173
-```
-
-## API REST
-
-A API disponibiliza recursos para autenticação, produtos, produtores, encomendas, avaliações, leilões e administração.
-
-A especificação encontra-se em:
-
-```text
-api/openapi.yaml
-```
-
-Pode ser consultada através da interface Swagger em:
+Com a API a correr localmente:
 
 ```text
 http://localhost:3000/api-docs
 ```
 
-Um teste rápido ao estado da API pode ser efetuado através de:
+Health check:
 
 ```text
-GET http://localhost:3000/api/health
+http://localhost:3000/api/health
 ```
 
 Resposta esperada:
@@ -237,87 +251,643 @@ Resposta esperada:
 }
 ```
 
-## Autenticação e segurança
+---
 
-As passwords são armazenadas através de hash com **bcrypt** e nunca são devolvidas ao frontend.
+## 7. Modelo de dados
 
-Após o login é emitido um token **JWT**, utilizado tanto pela API REST como pela autenticação das ligações Socket.IO.
+A aplicação utiliza as seguintes coleções principais:
 
-As rotas protegidas validam o papel do utilizador, distinguindo compradores, produtores e administradores.
+| Coleção | Função |
+|---|---|
+| `users` | compradores, produtores e administradores |
+| `products` | catálogo de produtos e stock |
+| `orders` | encomendas e respetivas linhas |
+| `auctions` | leilões e licitação atual |
+| `bids` | histórico de licitações |
+| `reviews` | avaliações de produtos/produtores e moderação |
 
-O registo público permite criar contas de comprador e produtor. Uma conta de produtor necessita de validação administrativa antes de poder utilizar as funcionalidades reservadas a produtores validados.
+### Embedding e linking
 
-A gestão de produtos verifica simultaneamente a autenticação, o papel de produtor, a validação da conta e a propriedade do produto.
+A modelação combina referências entre entidades independentes com dados embebidos quando existe vantagem de consistência ou de preservação histórica.
 
-## Leilões em tempo real
+Exemplos:
 
-Os leilões são implementados através de Socket.IO.
+- `Product` referencia o respetivo produtor;
+- `Review` referencia autor, produtor, produto e encomenda;
+- `Order` referencia comprador/produtor, mas contém as linhas embebidas;
+- cada linha da encomenda preserva nome, preço unitário, unidade e quantidade observados no momento da compra;
+- `Auction` contém a `licitacaoAtual` embebida, permitindo uma atualização atómica.
 
-Cada utilizador autenticado pode entrar numa sala associada a um leilão. As novas licitações são propagadas em tempo real aos participantes.
+### Operadores MongoDB utilizados
 
-A atualização da licitação atual é efetuada com uma operação atómica no MongoDB, verificando o estado do leilão, a data de término e o valor da licitação anterior.
+Entre outros:
 
-O histórico das licitações é armazenado separadamente na coleção de licitações.
+- `$regex` / `$options` — pesquisa textual;
+- `$lte`, `$gte`, `$lt`, `$gt` — filtros numéricos/temporais;
+- `$in` — filtros por conjunto de valores;
+- `$inc` — incrementos/decrementos atómicos;
+- `$set` — atualização de campos;
+- `sort()` e `limit()` — ordenação e limitação de resultados.
 
-Como possibilidade de evolução, operações que envolvem vários documentos, como a atualização do leilão e a criação do respetivo registo histórico, podem futuramente ser agrupadas numa transação MongoDB.
+---
 
-## Responsividade e acessibilidade
+## 8. Encomendas e stock
 
-A interface segue uma abordagem **Mobile First**.
+A criação de uma encomenda reserva stock de forma condicionada.
 
-Os principais breakpoints utilizados são:
-
-```text
-768 px
-1024 px
-1280 px
-```
-
-Os estilos são organizados com SASS, utilizando variáveis, mixins, partials e nesting.
-
-A aplicação utiliza elementos HTML semânticos, labels associados aos formulários, textos alternativos nas imagens, cabeçalhos de tabelas, regiões acessíveis e um link para saltar diretamente para o conteúdo principal.
-
-## Armazenamento de imagens
-
-Em desenvolvimento, os uploads são guardados em:
-
-```text
-api/uploads/
-```
-
-Esta pasta não é versionada no Git.
-
-As imagens necessárias aos dados de demonstração estão, no entanto, versionadas em:
+Não é utilizado apenas o padrão:
 
 ```text
-api/src/seed/assets/
+ler stock -> verificar -> atualizar
 ```
 
-O serviço de imagens também possui suporte para **Azure Blob Storage** quando é configurada a variável `STORAGE_CONN`.
+porque dois pedidos concorrentes poderiam observar o mesmo stock.
 
-## Base de dados
+Cada linha é atualizada garantindo que existe quantidade suficiente. Se uma linha posterior da mesma encomenda falhar, as quantidades previamente reservadas são repostas antes de devolver o erro ao cliente.
 
-A aplicação utiliza MongoDB através do Mongoose.
+Este comportamento está coberto pelos testes automáticos, incluindo:
 
-São utilizados os seguintes modelos:
+- reserva válida (`12 -> 10`);
+- stock insuficiente (`409`);
+- rollback de uma linha previamente reservada quando outra falha.
+
+---
+
+## 9. Avaliações e moderação
+
+Após uma encomenda ser marcada como `entregue`, o comprador pode avaliar:
+
+- o produto;
+- o produtor.
+
+A API impede avaliações repetidas da mesma encomenda/produto.
+
+Os utilizadores autenticados podem denunciar uma avaliação. O administrador recebe essa informação no painel e pode:
+
+- **ocultar** a avaliação;
+- **restaurar** a avaliação.
+
+O conteúdo ocultado deixa de ser devolvido na área pública, mas o documento é preservado para moderação e eventual restauro.
+
+---
+
+## 10. Leilões em tempo real
+
+Os leilões utilizam Socket.IO para:
+
+- entrada/saída de salas;
+- sincronização do estado inicial;
+- presença;
+- novas licitações;
+- rejeição de licitações inválidas;
+- fecho do leilão;
+- notificação do vencedor;
+- atualização do painel administrativo.
+
+### Consistência de licitações concorrentes
+
+O ponto crítico é impedir que duas licitações simultâneas sobre o mesmo valor sejam ambas aceites.
+
+A solução utiliza `findOneAndUpdate` com uma condição sobre o valor atual do próprio documento `Auction`:
+
+```js
+const leilao = await Auction.findOneAndUpdate(
+  {
+    _id: leilaoId,
+    estado: 'ativo',
+    terminaEm: { $gt: agora },
+    'licitacaoAtual.valor': {
+      $lte: limiteAnterior
+    }
+  },
+  {
+    $set: {
+      licitacaoAtual: {
+        valor: valorLicitacao,
+        comprador: socket.user.id,
+        nome: socket.user.nome,
+        em: agora
+      }
+    },
+    $inc: {
+      numLicitacoes: 1
+    }
+  },
+  {
+    new: true,
+    runValidators: true
+  }
+);
+```
+
+Quando dois compradores submetem simultaneamente **105 €**, apenas a primeira atualização consegue satisfazer o filtro. A segunda já encontra um valor diferente e é recusada.
+
+O teste automático confirma simultaneamente que:
+
+1. só uma das duas respostas é aceite;
+2. existe apenas **uma** licitação de 105 € no histórico.
+
+### Fecho do leilão
+
+Quando o prazo termina:
+
+1. o estado passa de `ativo` para `terminado`;
+2. é determinado o vencedor;
+3. é criada uma encomenda `confirmada` com origem `leilao`;
+4. a encomenda é associada ao leilão;
+5. o vencedor recebe a notificação `leilao-ganho`.
+
+Um comprador não vencedor não consegue consultar essa encomenda.
+
+---
+
+## 11. Autenticação e segurança
+
+### JWT
+
+Após login, a API devolve um token JWT e os dados públicos do utilizador. O token é enviado em:
 
 ```text
-User
-Product
-Order
-Review
-Auction
-Bid
+Authorization: Bearer <token>
 ```
 
-As linhas das encomendas são embebidas no documento da encomenda, enquanto utilizadores, produtos, avaliações, leilões e licitações utilizam referências entre documentos quando apropriado.
+A ligação Socket.IO também é autenticada.
 
-## Desenvolvimento
+### Passwords
 
-O projeto foi desenvolvido de forma incremental, com utilização de Git e branches dedicadas às diferentes funcionalidades.
+As passwords são guardadas exclusivamente como hash `bcrypt`.
 
-O histórico de commits e Pull Requests permite acompanhar a evolução desde a estrutura inicial até à implementação das funcionalidades finais.
+O campo `passwordHash` não é devolvido nas consultas normais do Mongoose.
 
-## Autor
+### Autorização
 
-Projeto académico desenvolvido para a unidade curricular de **Desenvolvimento Web e para a Cloud** do **Mestrado em Engenharia Informática — IPVC/ESTG**.
+A segurança é aplicada no backend, mesmo quando a interface já esconde uma determinada ação.
+
+Exemplos testados:
+
+- comprador não acede ao painel administrativo (`403`);
+- produtor ainda não validado não pode publicar produtos (`403`);
+- outro produtor não pode editar um produto alheio (`404`);
+- token de socket inválido é recusado.
+
+### Variáveis sensíveis
+
+Os ficheiros `.env` não são versionados. Apenas `.env.example` deve ser enviado para o Git.
+
+---
+
+## 12. Backoffice Laravel
+
+Foi desenvolvido um backoffice adicional na pasta `backoffice/`.
+
+Características:
+
+- Laravel 13;
+- arquitetura MVC;
+- interface em Blade;
+- autenticação administrativa através da API Node;
+- token guardado em sessão Laravel;
+- dashboard com:
+  - estatísticas;
+  - produtores pendentes;
+  - avaliações denunciadas;
+  - leilões ativos;
+  - histórico de ações administrativas;
+- aprovação/rejeição de produtores;
+- ocultação/restauro de avaliações.
+
+### Eloquent e auditoria
+
+Os dados principais continuam no MongoDB. Para demonstrar uma utilização real de Eloquent sem duplicar a base de negócio, foi criada uma base SQLite local para auditoria.
+
+O modelo `AdminAudit` regista:
+
+- administrador;
+- email;
+- ação;
+- tipo de alvo;
+- identificador do alvo;
+- detalhes em JSON;
+- timestamps.
+
+---
+
+## 13. Instalação e execução
+
+### 13.1 Pré-requisitos
+
+Para a aplicação principal:
+
+- Git;
+- Node.js 20 ou superior;
+- npm;
+- acesso a uma base MongoDB (local ou MongoDB Atlas).
+
+Para o backoffice opcional:
+
+- PHP 8.x;
+- Composer;
+- extensões PHP necessárias ao Laravel/SQLite.
+
+---
+
+### 13.2 Clonar o repositório
+
+```bash
+git clone https://github.com/FranciscoOMatos/do-campo-a-mesa.git
+cd do-campo-a-mesa
+```
+
+---
+
+### 13.3 Configurar e arrancar a API
+
+```bash
+cd api
+npm install
+```
+
+Criar `.env` a partir do exemplo:
+
+**PowerShell**
+
+```powershell
+Copy-Item .env.example .env
+```
+
+**Bash/Git Bash**
+
+```bash
+cp .env.example .env
+```
+
+Configuração base esperada:
+
+```env
+PORT=3000
+MONGODB_URI=mongodb://localhost:27017/do-campo-a-mesa
+JWT_SECRET=trocar-por-um-segredo-longo-e-aleatorio
+JWT_EXPIRES_IN=2h
+CLIENT_URL=http://localhost:5173
+STORAGE_CONN=
+STORAGE_CONTAINER=produtos
+```
+
+> Para MongoDB Atlas, substituir `MONGODB_URI` pela connection string do cluster.
+
+Gerar um segredo JWT forte, por exemplo:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+Carregar os dados de demonstração:
+
+```bash
+npm run seed
+```
+
+Arrancar a API em desenvolvimento:
+
+```bash
+npm run dev
+```
+
+Ou sem nodemon:
+
+```bash
+npm start
+```
+
+API:
+
+```text
+http://localhost:3000
+```
+
+Swagger:
+
+```text
+http://localhost:3000/api-docs
+```
+
+---
+
+### 13.4 Configurar e arrancar o frontend
+
+Num segundo terminal:
+
+```bash
+cd web
+npm install
+```
+
+Criar `.env`:
+
+```env
+VITE_API_URL=http://localhost:3000
+VITE_USAR_DADOS_SIMULADOS=false
+```
+
+Arrancar:
+
+```bash
+npm run dev
+```
+
+Frontend:
+
+```text
+http://localhost:5173
+```
+
+Build de produção:
+
+```bash
+npm run build
+```
+
+---
+
+### 13.5 Arrancar o backoffice Laravel
+
+Garantir primeiro que a API Node está a correr.
+
+```bash
+cd backoffice
+composer install
+npm install
+```
+
+Criar `.env`:
+
+```bash
+cp .env.example .env
+```
+
+No Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+O endereço da API deve estar configurado como:
+
+```env
+NODE_API_URL=http://localhost:3000/api
+```
+
+Gerar a chave da aplicação:
+
+```bash
+php artisan key:generate
+```
+
+Criar a base SQLite (se ainda não existir):
+
+**PowerShell**
+
+```powershell
+New-Item database/database.sqlite -ItemType File -Force
+```
+
+**Bash**
+
+```bash
+touch database/database.sqlite
+```
+
+Executar as migrations:
+
+```bash
+php artisan migrate
+```
+
+Build dos assets:
+
+```bash
+npm run build
+```
+
+Arrancar o servidor Laravel:
+
+```bash
+php artisan serve
+```
+
+Backoffice:
+
+```text
+http://localhost:8000
+```
+
+---
+
+## 14. Dados de demonstração
+
+O comando:
+
+```bash
+cd api
+npm run seed
+```
+
+repõe a base de dados num estado conhecido.
+
+### Credenciais
+
+Todas as contas de demonstração usam:
+
+```text
+password123
+```
+
+| Papel | Email |
+|---|---|
+| Administrador | `admin@exemplo.pt` |
+| Comprador | `tasca@exemplo.pt` |
+| Produtor | `horta@exemplo.pt` |
+| Produtor | `mel@exemplo.pt` |
+| Produtor | `padaria.minho@exemplo.pt` |
+| Produtor | `queijaria.valedolima@exemplo.pt` |
+| Produtor | `quinta.valedolima@exemplo.pt` |
+
+O seed final contém:
+
+- 7 utilizadores;
+- 5 produtores validados;
+- 14 produtos;
+- 14 imagens preparadas;
+- 1 leilão ativo.
+
+---
+
+## 15. Testes
+
+### Testes E2E da API e Socket.IO
+
+Com a API a correr:
+
+```bash
+cd api
+npm test
+```
+
+Resultado final validado:
+
+```text
+51 / 51 verificações a passar.
+```
+
+A suite cobre, entre outros:
+
+- health check;
+- login e sessão autenticada;
+- registo de comprador/produtor;
+- validação administrativa;
+- autorização por papel;
+- CRUD de produtos;
+- pesquisa `$regex`;
+- filtros `$lte` e ordenação;
+- ownership de produtos;
+- reserva atómica de stock;
+- rollback de stock;
+- criação e estados de encomendas;
+- notificações de encomenda em tempo real;
+- criação e moderação de avaliações;
+- denúncia de avaliações;
+- autenticação Socket.IO;
+- salas de leilão;
+- licitações abaixo do mínimo;
+- licitações simultâneas;
+- consistência do histórico;
+- fecho automático;
+- identificação/notificação do vencedor;
+- criação automática da encomenda do leilão;
+- isolamento da encomenda perante compradores não vencedores.
+
+> Os testes criam dados temporários. Para voltar ao cenário de demonstração, executar novamente `npm run seed`.
+
+### Testes Laravel
+
+```bash
+cd backoffice
+php artisan test
+```
+
+Resultado final validado:
+
+```text
+3 testes aprovados
+4 assertions
+```
+
+---
+
+## 16. Cloud
+
+A solução foi preparada para uma arquitetura Cloud, mas **o deployment público não foi realizado na versão final**.
+
+Topologia prevista:
+
+- SPA em serviço de hosting/PaaS (por exemplo, Azure Static Web Apps);
+- API Node/Express em PaaS com WebSockets (por exemplo, Azure App Service);
+- MongoDB Atlas como DBaaS;
+- imagens em serviço de objetos (Azure Blob Storage ou equivalente);
+- HTTPS/WSS em produção.
+
+O código já utiliza variáveis de ambiente para URL da SPA/API, MongoDB, JWT e storage.
+
+Não foram apresentados como concluídos:
+
+- URLs públicas;
+- validação HTTPS/WSS em produção;
+- auto-scaling;
+- medição de custos Cloud.
+
+---
+
+## 17. Decisões técnicas relevantes
+
+### Licitações simultâneas
+
+Problema: duas propostas podem chegar praticamente no mesmo instante.
+
+Solução: atualização condicional atómica no documento `Auction` através de `findOneAndUpdate`.
+
+### Reserva de stock
+
+Problema: evitar vender mais stock do que o disponível e evitar reservas parciais quando uma encomenda falha a meio.
+
+Solução: decrementos condicionados + reposição das reservas anteriores em caso de falha.
+
+### Histórico das encomendas
+
+Problema: alterações posteriores de preço/nome do produto não devem alterar compras antigas.
+
+Solução: linhas da encomenda embebem os dados relevantes observados no momento da compra.
+
+### Backoffice
+
+Problema: cumprir a componente Laravel sem criar uma segunda fonte de verdade de negócio.
+
+Solução: Laravel consome a API existente; Eloquent/SQLite é usado exclusivamente para auditoria administrativa.
+
+---
+
+## 18. Limitações e melhorias futuras
+
+- concluir deployment público;
+- mover efetivamente as imagens para object storage;
+- validar CORS, HTTPS e WSS em produção;
+- preparar Socket.IO para múltiplas instâncias através de um adaptador partilhado (por exemplo, Redis);
+- reforçar a denúncia de avaliações com uma coleção própria por utilizador/review;
+- adicionar motivos e estados de análise às denúncias;
+- aumentar a cobertura automatizada do frontend;
+- adicionar testes de componentes/interface;
+- estudar auto-scaling e custos reais em Cloud.
+
+---
+
+## 19. Processo de desenvolvimento
+
+O trabalho foi desenvolvido de forma incremental, recorrendo a branches e pull requests para funcionalidades relevantes.
+
+Na fase final foram, por exemplo, integradas separadamente:
+
+- backoffice administrativo em Laravel;
+- página individual de produto;
+- possibilidade de denunciar avaliações.
+
+Antes da preparação dos entregáveis foi efetuada a validação final:
+
+1. `51/51` testes E2E;
+2. novo `seed` para remover dados temporários;
+3. `npm run build` do frontend concluído;
+4. `php artisan test` concluído;
+5. repositório `main` sincronizado e sem alterações pendentes.
+
+---
+
+## 20. Utilização de Inteligência Artificial
+
+Foi utilizada a ferramenta ChatGPT (OpenAI) como apoio ao desenvolvimento e documentação, nomeadamente para:
+
+- clarificação de requisitos;
+- sugestão de passos incrementais;
+- diagnóstico de erros;
+- revisão de código;
+- apoio à criação e extensão dos testes;
+- discussão de decisões arquiteturais;
+- estruturação e revisão da documentação.
+
+As alterações sugeridas foram executadas e verificadas pelo autor. A responsabilidade pelas decisões técnicas, testes, validação funcional e versão final permaneceu do autor do projeto.
+
+---
+
+## 21. Autor
+
+**Francisco Oliveira Matos**  
+Nº 31406  
+Mestrado em Engenharia Informática  
+Desenvolvimento Web e para a Cloud — 2026/2027
