@@ -19,6 +19,7 @@ import PainelAdmin from './pages/admin/Painel.jsx';
 import NaoEncontrado from './pages/NaoEncontrado.jsx';
 import Notificacoes from './components/Notificacoes.jsx';
 import EditarPerfilProdutor from './pages/produtor/EditarPerfil.jsx';
+import Inicio from './pages/Inicio.jsx';
 
 export default function App() {
   return (
@@ -41,7 +42,8 @@ export default function App() {
       >
         <Routes>
           {/* Visitante */}
-          <Route path="/" element={<Catalogo />} />
+          <Route path="/" element={<Inicio />} />
+<Route path="/produtos" element={<Catalogo />} />
 <Route path="/produtos/:id" element={<Produto />} />
 <Route path="/produtores" element={<Produtores />} />
 <Route path="/produtores/:id" element={<Produtor />} />

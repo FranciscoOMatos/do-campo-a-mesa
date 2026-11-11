@@ -26,6 +26,8 @@ import {
 import produtosSimulados
   from '../data/produtos.json';
 
+import { Link } from 'react-router-dom';
+
 const CATEGORIAS = [
   'Todos',
   'Hortícolas',
@@ -88,7 +90,7 @@ function localidadeProdutor(produtor) {
   );
 }
 
-export default function Catalogo() {
+export default function Catalogo({ paginaInicial = false }) {
   const [
     produtos,
     setProdutos
@@ -410,333 +412,353 @@ export default function Catalogo() {
 
   return (
     <>
-      <section className="destaque mb-4">
-        <h1>
-          Direto de quem produz,
-          para a sua mesa.
-        </h1>
+      {paginaInicial && (
+        <section className="destaque mb-4">
+          <h1>
+            Direto de quem produz,
+            para a sua mesa.
+          </h1>
 
-        <p className="texto-secundario">
-          Produtores do Alto Minho.
-          Encomende ou dispute os lotes
-          da época nos leilões em direto.
-        </p>
+          <p className="texto-secundario">
+            Produtores do Alto Minho.
+            Encomende ou dispute os lotes
+            da época nos leilões em direto.
+          </p>
 
-        {leilaoDestaque && (
-          <section
-            className="mt-4"
-            aria-labelledby="titulo-leilao-destaque"
-          >
-            <div className="d-flex align-items-center gap-2 mb-3">
-              <span
-                className="badge text-bg-danger"
-                aria-hidden="true"
-              >
-                EM DIRETO
-              </span>
-
-              <h2
-                id="titulo-leilao-destaque"
-                className="h4 mb-0"
-              >
-                Leilão em destaque
-              </h2>
-            </div>
-
-            <div className="row">
-              <div className="col-12 col-md-8 col-lg-6">
-                <CartaoLeilao
-                  leilao={leilaoDestaque}
-                  autenticado={
-                    Boolean(utilizador)
-                  }
-                />
-              </div>
-            </div>
-          </section>
-        )}
-      </section>
-
-      <section
-        className="filtros mb-4"
-        aria-labelledby="titulo-filtros"
-      >
-        <h2
-          id="titulo-filtros"
-          className="visually-hidden"
-        >
-          Filtrar produtos
-        </h2>
-
-        <div className="w-100">
-          <label
-            className="visually-hidden"
-            htmlFor="pesquisa"
-          >
-            Pesquisar produtos ou
-            produtores
-          </label>
-
-          <input
-            id="pesquisa"
-            type="search"
-            className="form-control"
-            placeholder="Pesquisar produto ou produtor..."
-            value={filtro.q}
-            onChange={mudar('q')}
-          />
-        </div>
-
-        <div
-          className="d-flex flex-wrap gap-2"
-          role="group"
-          aria-label="Filtrar por categoria"
-        >
-          {CATEGORIAS.map(
-            (categoria) => {
-              const selecionada =
-                filtro.categoria ===
-                categoria;
-
-              return (
-                <button
-                  key={categoria}
-                  type="button"
-                  className={`btn btn-sm ${
-                    selecionada
-                      ? 'btn-dark'
-                      : 'btn-outline-secondary'
-                  }`}
-                  aria-pressed={
-                    selecionada
-                  }
-                  onClick={() =>
-                    setFiltro(
-                      (atual) => ({
-                        ...atual,
-                        categoria
-                      })
-                    )
-                  }
+          {leilaoDestaque && (
+            <section
+              className="mt-4"
+              aria-labelledby="titulo-leilao-destaque"
+            >
+              <div className="d-flex align-items-center gap-2 mb-3">
+                <span
+                  className="badge text-bg-danger"
+                  aria-hidden="true"
                 >
-                  {categoria}
-                </button>
-              );
-            }
+                  EM DIRETO
+                </span>
+
+                <h2
+                  id="titulo-leilao-destaque"
+                  className="h4 mb-0"
+                >
+                  Leilão em destaque
+                </h2>
+              </div>
+
+              <div className="row">
+                <div className="col-12 col-md-8 col-lg-6">
+                  <CartaoLeilao
+                    leilao={leilaoDestaque}
+                    autenticado={
+                      Boolean(utilizador)
+                    }
+                  />
+                </div>
+              </div>
+            </section>
           )}
-        </div>
+        </section>
+      )}
 
-        <div className="row g-2 w-100 align-items-end">
-          <div className="col-12 col-md-6 col-lg-3">
+      {!paginaInicial && (
+        <header className="mb-4">
+          <h1>Produtos</h1>
+          <p className="texto-secundario mb-0">
+            Explore os produtos dos produtores locais do Alto Minho.
+          </p>
+        </header>
+      )}
+      {!paginaInicial && (
+        <section
+          className="filtros mb-4"
+          aria-labelledby="titulo-filtros"
+        >
+          <h2
+            id="titulo-filtros"
+            className="visually-hidden"
+          >
+            Filtrar produtos
+          </h2>
+
+          <div className="w-100">
             <label
-              htmlFor="produtor"
-              className="form-label"
+              className="visually-hidden"
+              htmlFor="pesquisa"
             >
-              Produtor
-            </label>
-
-            <select
-              id="produtor"
-              className="form-select"
-              value={
-                filtro.produtor
-              }
-              onChange={
-                mudar('produtor')
-              }
-            >
-              <option value="">
-                Todos os produtores
-              </option>
-
-              {produtores.map(
-                (produtor) => (
-                  <option
-                    key={
-                      produtor.id
-                    }
-                    value={
-                      produtor.id
-                    }
-                  >
-                    {produtor
-                      .produtor
-                      ?.nomeExploracao ||
-                      produtor.nome}
-                  </option>
-                )
-              )}
-            </select>
-          </div>
-
-          <div className="col-12 col-md-6 col-lg-3">
-            <label
-              htmlFor="localidade"
-              className="form-label"
-            >
-              Localidade
+              Pesquisar produtos ou
+              produtores
             </label>
 
             <input
-              id="localidade"
+              id="pesquisa"
               type="search"
               className="form-control"
-              placeholder="Ex.: Ponte de Lima"
-              value={
-                filtro.localidade
-              }
-              onChange={
-                mudar('localidade')
-              }
+              placeholder="Pesquisar produto ou produtor..."
+              value={filtro.q}
+              onChange={mudar('q')}
             />
           </div>
 
-          <div className="col-12 col-md-6 col-lg-3">
-            <label
-              htmlFor="epoca"
-              className="form-label"
-            >
-              Época
-            </label>
+          <div
+            className="d-flex flex-wrap gap-2"
+            role="group"
+            aria-label="Filtrar por categoria"
+          >
+            {CATEGORIAS.map(
+              (categoria) => {
+                const selecionada =
+                  filtro.categoria ===
+                  categoria;
 
-            <select
-              id="epoca"
-              className="form-select"
-              value={
-                filtro.epoca
-              }
-              onChange={
-                mudar('epoca')
-              }
-            >
-              {EPOCAS.map(
-                (epoca) => (
-                  <option
-                    key={epoca}
-                    value={epoca}
+                return (
+                  <button
+                    key={categoria}
+                    type="button"
+                    className={`btn btn-sm ${
+                      selecionada
+                        ? 'btn-dark'
+                        : 'btn-outline-secondary'
+                    }`}
+                    aria-pressed={
+                      selecionada
+                    }
+                    onClick={() =>
+                      setFiltro(
+                        (atual) => ({
+                          ...atual,
+                          categoria
+                        })
+                      )
+                    }
                   >
-                    {epoca}
-                  </option>
-                )
-              )}
-            </select>
+                    {categoria}
+                  </button>
+                );
+              }
+            )}
           </div>
 
-          <div className="col-12 col-md-6 col-lg-3">
-            <label
-              htmlFor="precoMax"
-              className="form-label"
-            >
-              Preço máximo
-            </label>
+          <div className="row g-2 w-100 align-items-end">
+            <div className="col-12 col-md-6 col-lg-3">
+              <label
+                htmlFor="produtor"
+                className="form-label"
+              >
+                Produtor
+              </label>
 
-            <div className="input-group">
-              <span className="input-group-text">
-                €
-              </span>
-
-              <input
-                id="precoMax"
-                type="number"
-                className="form-control"
-                min="0"
-                step="0.01"
-                placeholder="Sem limite"
+              <select
+                id="produtor"
+                className="form-select"
                 value={
-                  filtro.precoMax
+                  filtro.produtor
                 }
                 onChange={
-                  mudar('precoMax')
+                  mudar('produtor')
+                }
+              >
+                <option value="">
+                  Todos os produtores
+                </option>
+
+                {produtores.map(
+                  (produtor) => (
+                    <option
+                      key={
+                        produtor.id
+                      }
+                      value={
+                        produtor.id
+                      }
+                    >
+                      {produtor
+                        .produtor
+                        ?.nomeExploracao ||
+                        produtor.nome}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
+            <div className="col-12 col-md-6 col-lg-3">
+              <label
+                htmlFor="localidade"
+                className="form-label"
+              >
+                Localidade
+              </label>
+
+              <input
+                id="localidade"
+                type="search"
+                className="form-control"
+                placeholder="Ex.: Ponte de Lima"
+                value={
+                  filtro.localidade
+                }
+                onChange={
+                  mudar('localidade')
                 }
               />
             </div>
-          </div>
-        </div>
 
-        <div className="row g-2 w-100 align-items-end">
-          <div className="col-12 col-md-6">
-            <label
-              htmlFor="ordenar"
-              className="form-label"
-            >
-              Ordenar
-            </label>
+            <div className="col-12 col-md-6 col-lg-3">
+              <label
+                htmlFor="epoca"
+                className="form-label"
+              >
+                Época
+              </label>
 
-            <select
-              id="ordenar"
-              className="form-select"
-              value={
-                filtro.ordenar
-              }
-              onChange={
-                mudar('ordenar')
-              }
-            >
-              {ORDENACOES.map(
-                (opcao) => (
-                  <option
-                    key={
-                      opcao.valor
-                    }
-                    value={
-                      opcao.valor
-                    }
-                  >
-                    {opcao.texto}
-                  </option>
-                )
-              )}
-            </select>
-          </div>
-
-          <div className="col-12 col-md-6">
-            <div className="d-flex flex-wrap align-items-center gap-3 h-100 pb-2">
-              <div className="form-check mb-0">
-                <input
-                  id="bio"
-                  className="form-check-input"
-                  type="checkbox"
-                  checked={
-                    filtro.bio
-                  }
-                  onChange={
-                    mudar('bio')
-                  }
-                />
-
-                <label
-                  className="form-check-label"
-                  htmlFor="bio"
-                >
-                  Só biológico
-                </label>
-              </div>
-
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-secondary"
-                onClick={
-                  limparFiltros
+              <select
+                id="epoca"
+                className="form-select"
+                value={
+                  filtro.epoca
+                }
+                onChange={
+                  mudar('epoca')
                 }
               >
-                Limpar filtros
-              </button>
+                {EPOCAS.map(
+                  (epoca) => (
+                    <option
+                      key={epoca}
+                      value={epoca}
+                    >
+                      {epoca}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
+            <div className="col-12 col-md-6 col-lg-3">
+              <label
+                htmlFor="precoMax"
+                className="form-label"
+              >
+                Preço máximo
+              </label>
+
+              <div className="input-group">
+                <span className="input-group-text">
+                  €
+                </span>
+
+                <input
+                  id="precoMax"
+                  type="number"
+                  className="form-control"
+                  min="0"
+                  step="0.01"
+                  placeholder="Sem limite"
+                  value={
+                    filtro.precoMax
+                  }
+                  onChange={
+                    mudar('precoMax')
+                  }
+                />
+              </div>
             </div>
           </div>
+
+          <div className="row g-2 w-100 align-items-end">
+            <div className="col-12 col-md-6">
+              <label
+                htmlFor="ordenar"
+                className="form-label"
+              >
+                Ordenar
+              </label>
+
+              <select
+                id="ordenar"
+                className="form-select"
+                value={
+                  filtro.ordenar
+                }
+                onChange={
+                  mudar('ordenar')
+                }
+              >
+                {ORDENACOES.map(
+                  (opcao) => (
+                    <option
+                      key={
+                        opcao.valor
+                      }
+                      value={
+                        opcao.valor
+                      }
+                    >
+                      {opcao.texto}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
+            <div className="col-12 col-md-6">
+              <div className="d-flex flex-wrap align-items-center gap-3 h-100 pb-2">
+                <div className="form-check mb-0">
+                  <input
+                    id="bio"
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={
+                      filtro.bio
+                    }
+                    onChange={
+                      mudar('bio')
+                    }
+                  />
+
+                  <label
+                    className="form-check-label"
+                    htmlFor="bio"
+                  >
+                    Só biológico
+                  </label>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={
+                    limparFiltros
+                  }
+                >
+                  Limpar filtros
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <p
+            className="texto-secundario small mb-0"
+            role="status"
+            aria-live="polite"
+          >
+            {produtos.length}{' '}
+            {produtos.length === 1
+              ? 'produto encontrado'
+              : 'produtos encontrados'}
+          </p>
+        </section>
+      )}
+
+      {paginaInicial && (
+        <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+          <h2 className="h4 mb-0">Alguns dos nossos produtos</h2>
+          <Link to="/produtos" className="btn btn-outline-success">
+            Ver catálogo completo
+          </Link>
         </div>
-
-        <p
-          className="texto-secundario small mb-0"
-          role="status"
-          aria-live="polite"
-        >
-          {produtos.length}{' '}
-          {produtos.length === 1
-            ? 'produto encontrado'
-            : 'produtos encontrados'}
-        </p>
-      </section>
-
+      )}
       {erro && (
         <div
           className="alert alert-danger"
@@ -757,7 +779,7 @@ export default function Catalogo() {
           Produtos
         </h2>
 
-        {produtos.map(
+        {(paginaInicial ? produtos.slice(0, 4) : produtos).map(
           (produto) => (
             <CartaoProduto
               key={produto._id}
@@ -782,8 +804,9 @@ export default function Catalogo() {
             className="texto-secundario mt-3"
             role="status"
           >
-            Nenhum produto encontrado
-            com os filtros selecionados.
+            {paginaInicial
+              ? 'Ainda não existem produtos disponíveis.'
+              : 'Nenhum produto encontrado com os filtros selecionados.'}
           </p>
         )}
     </>
