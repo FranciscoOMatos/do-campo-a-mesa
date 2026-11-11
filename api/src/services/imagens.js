@@ -1,13 +1,15 @@
-// Serviço de armazenamento das imagens dos produtos.
-// Em desenvolvimento guarda em api/uploads/.
-// Com STORAGE_CONN configurada usa Azure Blob Storage.
+
+/**
+ * Serviço de armazenamento das imagens dos produtos.
+ *
+ * Produção: Supabase Storage.
+ * Desenvolvimento sem Supabase: api/uploads/.
+ */
 
 const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
-const {
-  BlobServiceClient
-} = require('@azure/storage-blob');
+const { createClient } = require('@supabase/supabase-js');
 
 const TIPOS = {
   'image/jpeg': '.jpg',
@@ -15,45 +17,42 @@ const TIPOS = {
   'image/webp': '.webp'
 };
 
-let container;
+let supabase;
 
 function erro(status, mensagem) {
-  return Object.assign(
-    new Error(mensagem),
-    {
-      status
-    }
-  );
+  return Object.assign(new Error(mensagem), { status });
 }
 
-function obterContainer() {
-  if (!container) {
-    container = BlobServiceClient
-      .fromConnectionString(
-        process.env.STORAGE_CONN
-      )
-      .getContainerClient(
-        process.env.STORAGE_CONTAINER ||
-        'produtos'
-      );
-  }
+function obterSupabase() {
+  const url = process.env.SUPABASE_URL;
+  const chave = process.env.SUPABASE_SECRET_KEY;
 
-  return container;
-}
-
-async function guardarImagem(
-  ficheiro,
-  req
-) {
-  if (!ficheiro) {
+  if (!url || !chave) {
     throw erro(
-      400,
-      'É necessário enviar uma imagem'
+      500,
+      'Configuração do Supabase Storage incompleta'
     );
   }
 
-  const extensao =
-    TIPOS[ficheiro.mimetype];
+  if (!supabase) {
+    supabase = createClient(url, chave, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
+      }
+    });
+  }
+
+  return supabase;
+}
+
+async function guardarImagem(ficheiro, req) {
+  if (!ficheiro) {
+    throw erro(400, 'É necessário enviar uma imagem');
+  }
+
+  const extensao = TIPOS[ficheiro.mimetype];
 
   if (!extensao) {
     throw erro(
@@ -62,30 +61,55 @@ async function guardarImagem(
     );
   }
 
-  const nome =
-    `${Date.now()}-${crypto
-      .randomBytes(6)
-      .toString('hex')}${extensao}`;
+  const nome = `${Date.now()}-${crypto
+    .randomBytes(6)
+    .toString('hex')}${extensao}`;
 
-  // Produção: Azure Blob Storage
-  if (process.env.STORAGE_CONN) {
-    const blob = obterContainer()
-      .getBlockBlobClient(nome);
+  const usarSupabase = Boolean(
+    process.env.SUPABASE_URL ||
+    process.env.SUPABASE_SECRET_KEY
+  );
 
-    await blob.uploadData(
+  if (usarSupabase) {
+    const cliente = obterSupabase();
+    const bucket =
+      process.env.SUPABASE_STORAGE_BUCKET || 'produtos';
+
+    const caminho = `uploads/${nome}`;
+    const storage = cliente.storage.from(bucket);
+
+    const { error } = await storage.upload(
+      caminho,
       ficheiro.buffer,
       {
-        blobHTTPHeaders: {
-          blobContentType:
-            ficheiro.mimetype
-        }
+        contentType: ficheiro.mimetype,
+        upsert: false
       }
     );
 
-    return blob.url;
+    if (error) {
+      console.error(
+        'Erro no Supabase Storage:',
+        error.message
+      );
+
+      throw erro(502, 'Não foi possível guardar a imagem');
+    }
+
+    const { data } = storage.getPublicUrl(caminho);
+
+    return data.publicUrl;
   }
 
-  // Desenvolvimento: api/uploads/
+  // Nunca depender do disco temporário em produção.
+  if (process.env.NODE_ENV === 'production') {
+    throw erro(
+      500,
+      'Armazenamento externo não configurado'
+    );
+  }
+
+  // Desenvolvimento local sem Supabase.
   const pastaUploads = path.join(
     __dirname,
     '..',
@@ -93,26 +117,14 @@ async function guardarImagem(
     'uploads'
   );
 
-  await fs.mkdir(
-    pastaUploads,
-    {
-      recursive: true
-    }
-  );
+  await fs.mkdir(pastaUploads, { recursive: true });
 
   await fs.writeFile(
-    path.join(
-      pastaUploads,
-      nome
-    ),
+    path.join(pastaUploads, nome),
     ficheiro.buffer
   );
 
-  return `${req.protocol}://${req.get(
-    'host'
-  )}/uploads/${nome}`;
+  return `${req.protocol}://${req.get('host')}/uploads/${nome}`;
 }
 
-module.exports = {
-  guardarImagem
-};
+module.exports = { guardarImagem };

@@ -50,10 +50,65 @@ const imagens = {
 };
 
 function urlImagem(nomeFicheiro) {
+  if (SEED_IMAGE_STORAGE === 'supabase') {
+    const base = (
+      process.env.SUPABASE_URL || ''
+    ).replace(/\/+$/, '');
+
+    if (!base) {
+      throw new Error('SUPABASE_URL não configurada');
+    }
+
+    return (
+      `${base}/storage/v1/object/public/` +
+      `${encodeURIComponent(SUPABASE_BUCKET)}/seed/` +
+      encodeURIComponent(nomeFicheiro)
+    );
+  }
+
   return `${API_PUBLIC_URL}/uploads/${nomeFicheiro}`;
 }
 
+const SEED_IMAGE_STORAGE =
+  process.env.SEED_IMAGE_STORAGE || 'local';
+
+const SUPABASE_BUCKET =
+  process.env.SUPABASE_STORAGE_BUCKET || 'produtos';
+
+if (!['local', 'supabase'].includes(SEED_IMAGE_STORAGE)) {
+  throw new Error('SEED_IMAGE_STORAGE inválido');
+}
+
+// O modo local preserva a configuração de desenvolvimento.
+// O modo Render exige uma ligação independente e confirmação explícita.
+const SEED_TARGET = process.env.SEED_TARGET || 'local';
+
+const BASES_PERMITIDAS = {
+  local: 'do-campo-a-mesa',
+  render: 'do_campo_a_mesa_render'
+};
+
+if (!Object.hasOwn(BASES_PERMITIDAS, SEED_TARGET)) {
+  throw new Error('SEED_TARGET inválido');
+}
+
 async function prepararImagens() {
+  if (SEED_IMAGE_STORAGE === 'supabase') {
+    if (
+      !process.env.SUPABASE_URL ||
+      !process.env.SUPABASE_STORAGE_BUCKET
+    ) {
+      throw new Error(
+        'Configuração incompleta do Supabase para o seed'
+      );
+    }
+
+    console.log(
+      'Imagens de demonstração: Supabase Storage'
+    );
+
+    return;
+  }
   await fs.mkdir(
     PASTA_UPLOADS,
     {
@@ -87,27 +142,107 @@ async function limparBaseDados() {
 }
 
 async function seed() {
-  if (!process.env.MONGODB_URI) {
+  const ambienteRender = SEED_TARGET === 'render';
+
+  const uri = ambienteRender
+    ? process.env.MONGODB_URI_RENDER
+    : process.env.MONGODB_URI;
+
+  if (!uri) {
     throw new Error(
-      'MONGODB_URI não está configurada.'
+      `Ligação MongoDB não configurada para ${SEED_TARGET}`
     );
   }
 
-  await mongoose.connect(
-    process.env.MONGODB_URI
-  );
+  if (ambienteRender) {
+    if (
+      process.env.SEED_RENDER_CONFIRM !==
+      'INICIALIZAR_DCM_RENDER'
+    ) {
+      throw new Error(
+        'É necessária confirmação explícita para o seed Render'
+      );
+    }
 
-  console.log(
-    'Ligação à MongoDB estabelecida.'
-  );
+    if (SEED_IMAGE_STORAGE !== 'supabase') {
+      throw new Error(
+        'O seed Render exige imagens no Supabase'
+      );
+    }
 
-  await limparBaseDados();
+    // Credenciais independentes para os três papéis na versão pública.
+    // SEED_PASSWORD_RENDER é reservado ao comprador de demonstração.
+    const passwordsRender = [
+      ['SEED_ADMIN_PASSWORD_RENDER', process.env.SEED_ADMIN_PASSWORD_RENDER],
+      ['SEED_PRODUTOR_PASSWORD_RENDER', process.env.SEED_PRODUTOR_PASSWORD_RENDER],
+      ['SEED_PASSWORD_RENDER', process.env.SEED_PASSWORD_RENDER]
+    ];
+
+    for (const [nome, password] of passwordsRender) {
+      if (!password || password.length < 16 || password === 'password123') {
+        throw new Error(`${nome} deve ter pelo menos 16 caracteres e ser exclusiva`);
+      }
+    }
+
+    if (new Set(passwordsRender.map(([, password]) => password)).size !== 3) {
+      throw new Error('As passwords Render dos três papéis têm de ser diferentes');
+    }
+  }
+
+  await mongoose.connect(uri);
+
+  // Verificar a base de dados efetivamente selecionada
+  // antes de qualquer operação que elimine documentos.
+  const baseEsperada = BASES_PERMITIDAS[SEED_TARGET];
+  const baseAtual = mongoose.connection.name;
+
+  if (baseAtual !== baseEsperada) {
+    throw new Error(
+      `Base de dados incorreta. Esperada: ${baseEsperada}; obtida: ${baseAtual}`
+    );
+  }
+
+  if (ambienteRender) {
+    // O seed público só pode inicializar uma base vazia.
+    // Verificamos todas as coleções usadas, não apenas os utilizadores.
+    const documentosExistentes = await Promise.all([
+      User.exists({}),
+      Product.exists({}),
+      Auction.exists({}),
+      Bid.exists({}),
+      Order.exists({}),
+      Review.exists({})
+    ]);
+
+    if (documentosExistentes.some(Boolean)) {
+      throw new Error(
+        'A base Render já contém dados. Seed cancelado.'
+      );
+    }
+  }
+
+  console.log(`Ligação MongoDB validada: ${baseAtual}`);
+
+  // Preparar imagens e password antes de limpar/inserir dados.
   await prepararImagens();
 
-  const passwordHash = await bcrypt.hash(
-    'password123',
-    12
-  );
+  // O seed local mantém a password de demonstração original.
+  // No Render, cada papel tem uma credencial distinta.
+  const passwordSeed = ambienteRender
+    ? process.env.SEED_PASSWORD_RENDER
+    : 'password123';
+
+  const passwordHash = await bcrypt.hash(passwordSeed, 12);
+  const passwordHashAdmin = ambienteRender
+    ? await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD_RENDER, 12)
+    : passwordHash;
+  const passwordHashProdutor = ambienteRender
+    ? await bcrypt.hash(process.env.SEED_PRODUTOR_PASSWORD_RENDER, 12)
+    : passwordHash;
+
+  // ATENÇÃO: no modo local, substitui os dados de demonstração.
+  // No modo Render, a limpeza é permitida apenas numa base vazia.
+  await limparBaseDados();
 
   const [
     admin,
@@ -121,14 +256,14 @@ async function seed() {
     {
       nome: 'Administração',
       email: 'admin@exemplo.pt',
-      passwordHash,
+      passwordHash: passwordHashAdmin,
       papel: 'admin'
     },
 
     {
       nome: 'Horta da Ribeira',
       email: 'horta@exemplo.pt',
-      passwordHash,
+      passwordHash: passwordHashProdutor,
       papel: 'produtor',
 
       produtor: {
@@ -154,7 +289,7 @@ async function seed() {
     {
       nome: 'Mel do Soajo',
       email: 'mel@exemplo.pt',
-      passwordHash,
+      passwordHash: passwordHashProdutor,
       papel: 'produtor',
 
       produtor: {
@@ -180,7 +315,7 @@ async function seed() {
     {
       nome: 'Padaria do Minho',
       email: 'padaria.minho@exemplo.pt',
-      passwordHash,
+      passwordHash: passwordHashProdutor,
       papel: 'produtor',
 
       produtor: {
@@ -207,7 +342,7 @@ async function seed() {
       nome: 'Queijaria Vale do Lima',
       email:
         'queijaria.valedolima@exemplo.pt',
-      passwordHash,
+      passwordHash: passwordHashProdutor,
       papel: 'produtor',
 
       produtor: {
@@ -234,7 +369,7 @@ async function seed() {
       nome: 'Quinta do Vale do Lima',
       email:
         'quinta.valedolima@exemplo.pt',
-      passwordHash,
+      passwordHash: passwordHashProdutor,
       papel: 'produtor',
 
       produtor: {
@@ -723,7 +858,9 @@ async function seed() {
   console.log('Seed concluído com sucesso.');
   console.log('');
   console.log(
-    `Utilizadores criados (password: password123):`
+    ambienteRender
+      ? 'Utilizadores criados (password de produção configurada):'
+      : 'Utilizadores criados (password: password123):'
   );
 
   console.log(

@@ -50,18 +50,10 @@ async function iniciar() {
   // fecha automaticamente os expirados.
   iniciarCicloLeiloes(io);
 
-  server.listen(
-    PORT,
-    () => {
-      console.log(
-        `API em http://localhost:${PORT}`
-      );
-
-      console.log(
-        `Documentação em http://localhost:${PORT}/api-docs`
-      );
-    }
-  );
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`API iniciada na porta ${PORT}`);
+    console.log('Swagger disponível em /api-docs');
+  });
 }
 
 iniciar().catch((err) => {
