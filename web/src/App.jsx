@@ -93,6 +93,7 @@ export default function App() {
   element={
     <RotaProtegida
       papeis={['produtor']}
+      exigirValidacaoProdutor
     />
   }
 >
