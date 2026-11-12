@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Order = require('../models/Order');
 const Auction = require('../models/Auction');
 const Review = require('../models/Review');
+const ReviewDenuncia = require('../models/ReviewDenuncia');
 const auth = require('../middleware/auth');
 const a = require('../utils/async');
 const erro = require('../utils/erro');
@@ -147,36 +148,78 @@ router.patch(
   })
 );
 
-// GET /api/admin/reviews/denunciadas
-router.get(
-  '/reviews/denunciadas',
-  a(async (req, res) => {
-    const reviews = await Review
-      .find({
-        denuncias: {
-          $gt: 0
-        }
-      })
-      .sort({
-        denuncias: -1,
-        createdAt: -1
-      })
-      .populate(
-        'autor',
-        'nome email'
-      )
-      .populate(
-        'produtor',
-        'nome produtor.nomeExploracao'
-      )
-      .populate(
-        'produto',
-        'nome'
+
+  // GET /api/admin/reviews/denunciadas
+  router.get(
+    '/reviews/denunciadas',
+    a(async (req, res) => {
+      const reviews = await Review
+        .find({
+          denuncias: {
+            $gt: 0
+          }
+        })
+        .sort({
+          denuncias: -1,
+          createdAt: -1
+        })
+        .populate(
+          'autor',
+          'nome email'
+        )
+        .populate(
+          'produtor',
+          'nome produtor.nomeExploracao'
+        )
+        .populate(
+          'produto',
+          'nome'
+        );
+
+      const ids = reviews.map(
+        (review) => review._id
       );
 
-    res.json(reviews);
-  })
-);
+      const denuncias = await ReviewDenuncia
+        .find({
+          avaliacao: {
+            $in: ids
+          }
+        })
+        .select(
+          'avaliacao autor motivo descricao createdAt'
+        )
+        .populate(
+          'autor',
+          'nome'
+        )
+        .sort({
+          createdAt: -1
+        })
+        .lean();
+
+      const denunciasPorReview = new Map();
+
+      for (const denuncia of denuncias) {
+        const id = String(denuncia.avaliacao);
+
+        if (!denunciasPorReview.has(id)) {
+          denunciasPorReview.set(id, []);
+        }
+
+        denunciasPorReview.get(id).push(denuncia);
+      }
+
+      const resultado = reviews.map((review) => ({
+        ...review.toObject(),
+        detalhesDenuncias:
+          denunciasPorReview.get(String(review._id)) || []
+      }));
+
+      res.json(resultado);
+    })
+  );
+
 
 // PATCH /api/admin/reviews/:id
 // Body: { visivel: true | false }

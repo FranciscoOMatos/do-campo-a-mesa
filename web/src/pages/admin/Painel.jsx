@@ -585,6 +585,71 @@ export default function PainelAdmin() {
                         {review.denuncias}
                       </p>
 
+
+                      {review.detalhesDenuncias?.length > 0 && (
+                        <div className="mt-3">
+                          <p className="fw-semibold mb-2">
+                            Motivos das denúncias:
+                          </p>
+
+                          <ul className="list-group">
+                            {review.detalhesDenuncias.map(
+                              (denuncia) => (
+                                <li
+                                  key={denuncia._id}
+                                  className="list-group-item"
+                                >
+                                  <p className="mb-1">
+                                    <strong>Motivo:</strong>{' '}
+                                    {({
+                                      linguagem_ofensiva:
+                                        'Linguagem ofensiva ou inadequada',
+                                      informacao_falsa:
+                                        'Informação falsa ou enganosa',
+                                      spam:
+                                        'Spam ou publicidade',
+                                      outro:
+                                        'Outro motivo'
+                                    })[denuncia.motivo] ||
+                                      'Motivo não identificado'}
+                                  </p>
+
+                                  {denuncia.descricao && (
+                                    <p className="mb-1">
+                                      <strong>Descrição:</strong>{' '}
+                                      {denuncia.descricao}
+                                    </p>
+                                  )}
+
+                                  <p className="text-muted small mb-0">
+                                    Denunciado por:{' '}
+                                    {denuncia.autor?.nome ||
+                                      'Utilizador'}
+                                    {denuncia.createdAt && (
+                                      <>
+                                        {' — '}
+                                        {new Date(
+                                          denuncia.createdAt
+                                        ).toLocaleDateString('pt-PT')}
+                                      </>
+                                    )}
+                                  </p>
+                                </li>
+                              )
+                            )}
+                          </ul>
+                        </div>
+                      )}
+
+                      {review.denuncias >
+                        (review.detalhesDenuncias?.length || 0) && (
+                        <p className="text-muted small mt-2 mb-1">
+                          Existem também denúncias anteriores
+                          sem motivo registado.
+                        </p>
+                      )}
+
+
                       {review.comentario && (
                         <p className="mb-0 mt-3">
                           “{review.comentario}”
