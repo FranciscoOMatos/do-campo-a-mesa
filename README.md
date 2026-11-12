@@ -21,7 +21,7 @@ Para além da aplicação principal, foi desenvolvido um **backoffice administra
 O projeto foi validado com testes automáticos de ponta a ponta sobre a API e os sockets. A execução final terminou com:
 
 ```text
-51 / 51 verificações a passar.
+58 / 58 verificações a passar.
 ```
 
 ---
@@ -125,7 +125,7 @@ O backoffice Laravel também **consome a API Node**, mantendo o MongoDB como fon
 | Área | Tecnologia | Utilização |
 |---|---|---|
 | Frontend | React 18 | SPA, componentes e páginas |
-| Build frontend | Vite 5 | servidor de desenvolvimento e build |
+| Build frontend | Vite 6.4.6 | servidor de desenvolvimento e build |
 | Routing | React Router | navegação e rotas protegidas |
 | UI | Bootstrap 5 | grelha e componentes base |
 | Estilos | SASS/SCSS | variáveis, mixins e estilos próprios |
@@ -138,7 +138,7 @@ O backoffice Laravel também **consome a API Node**, mantendo o MongoDB como fon
 | Passwords | bcryptjs | hash e validação de passwords |
 | Documentação | OpenAPI 3 + Swagger UI | contrato e exploração da API |
 | Uploads | Multer | receção de imagens |
-| Storage preparado | Azure Blob Storage | armazenamento Cloud opcional |
+| Imagens em produção | Supabase Storage | armazenamento dos produtos |
 | Backoffice | Laravel 13 | componente administrativo adicional |
 | Views Laravel | Blade | interface do backoffice |
 | Auditoria | Eloquent + SQLite | registo de ações administrativas |
@@ -692,15 +692,11 @@ cd api
 npm run seed
 ```
 
-repõe a base de dados num estado conhecido.
+repõe a base de dados configurada em MONGODB_URI num estado conhecido. ATENÇÃO: executar apenas em desenvolvimento ou testes, nunca em produção.
 
 ### Credenciais
 
-Todas as contas de demonstração usam:
-
-```text
-password123
-```
+As credenciais de demonstração estão definidas no ficheiro `api/src/seed/seed.js` e destinam-se apenas ao ambiente local. Não devem ser reutilizadas em produção.
 
 | Papel | Email |
 |---|---|
@@ -736,7 +732,7 @@ npm test
 Resultado final validado:
 
 ```text
-51 / 51 verificações a passar.
+58 / 58 verificações a passar.
 ```
 
 A suite cobre, entre outros:
@@ -886,12 +882,8 @@ Solução: Laravel consome a API existente; Eloquent/SQLite é usado exclusivame
 
 ## 18. Limitações e melhorias futuras
 
-- concluir deployment público;
-- mover efetivamente as imagens para object storage;
-- validar CORS, HTTPS e WSS em produção;
 - preparar Socket.IO para múltiplas instâncias através de um adaptador partilhado (por exemplo, Redis);
-- reforçar a denúncia de avaliações com uma coleção própria por utilizador/review;
-- adicionar motivos e estados de análise às denúncias;
+- adicionar estados de análise e resolução às denúncias;
 - aumentar a cobertura automatizada do frontend;
 - adicionar testes de componentes/interface;
 - estudar auto-scaling e custos reais em Cloud.
@@ -910,7 +902,7 @@ Na fase final foram, por exemplo, integradas separadamente:
 
 Antes da preparação dos entregáveis foi efetuada a validação final:
 
-1. `51/51` testes E2E;
+1. `58/58` testes E2E;
 2. novo `seed` para remover dados temporários;
 3. `npm run build` do frontend concluído;
 4. `php artisan test` concluído;
@@ -940,3 +932,68 @@ As alterações sugeridas foram executadas e verificadas pelo autor. A responsab
 Nº 31406  
 Mestrado em Engenharia Informática  
 Desenvolvimento Web e para a Cloud — 2026/2027
+
+---
+
+## 22. Atualizações finais (novembro de 2026)
+
+### Validação de produtores
+
+Foi reforçada a proteção das áreas de gestão dos produtores. Após o registo, a conta permanece pendente até à aprovação administrativa.
+
+Enquanto aguarda aprovação, o produtor visualiza um ecrã específico, com a possibilidade de verificar novamente o estado da conta.
+
+Esta melhoria foi integrada através do Pull Request #25.
+
+### Sistema de denúncias de avaliações
+
+O sistema de denúncias foi melhorado com:
+
+- Formulário com motivo obrigatório e descrição opcional;
+- Quatro motivos disponíveis: linguagem ofensiva, informação falsa, spam e outro motivo;
+- Nova coleção MongoDB `reviewdenuncias`;
+- Registo do utilizador, avaliação, motivo, descrição e data;
+- Prevenção de denúncias da própria avaliação (HTTP 403);
+- Prevenção de denúncias duplicadas (HTTP 409);
+- Persistência do estado "Denunciada" após atualizar a página;
+- Transações MongoDB para garantir a consistência do contador;
+- Consulta dos motivos e descrições no painel administrativo;
+- Ocultação e restauro das avaliações denunciadas.
+
+Esta melhoria foi integrada através do Pull Request #26.
+
+### Testes e validação final
+
+A versão final foi validada com 58 verificações E2E aprovadas.
+
+Os testes incluem autenticação, autorização, gestão de produtos, encomendas, stock, notificações Socket.IO, avaliações, denúncias e leilões.
+
+Foram também testados pedidos de denúncia simultâneos, confirmando que apenas uma denúncia é registada por utilizador e avaliação.
+
+O frontend foi compilado com sucesso através de `npm run build`.
+
+O backoffice Laravel foi validado com 3 testes e 4 asserções aprovados.
+
+### Publicação na cloud
+
+A aplicação foi publicada com a seguinte arquitetura:
+
+- Frontend React/Vite: Render Static Site;
+- API Node.js/Express: Render Web Service;
+- Base de dados: MongoDB Atlas;
+- Imagens: Supabase Storage;
+- Backoffice Laravel: execução local com acesso à API publicada.
+
+Foram confirmados os deployments da API e do frontend com o commit `4f30fb2`, resultante do Pull Request #26.
+
+A comunicação em tempo real foi demonstrada entre diferentes sessões do navegador, incluindo notificações de encomendas e licitações.
+
+### Melhorias futuras
+
+Permanecem como possibilidades de evolução:
+
+- Adicionar estados de análise e resolução às denúncias;
+- Aumentar a cobertura de testes automatizados do frontend;
+- Melhorar a monitorização e o desempenho;
+- Preparar a comunicação Socket.IO para múltiplas instâncias;
+- Estudar escalabilidade e custos de operação na cloud.
