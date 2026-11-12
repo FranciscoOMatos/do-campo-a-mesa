@@ -1,7 +1,8 @@
 const router = require('express').Router();
-const { Types } = require('mongoose');
+const { Types, connection } = require('mongoose');
 
 const Review = require('../models/Review');
+const ReviewDenuncia = require('../models/ReviewDenuncia');
 const auth = require('../middleware/auth');
 const a = require('../utils/async');
 const erro = require('../utils/erro');
@@ -27,6 +28,34 @@ router.get(
     res.json(avaliacoes);
   })
 );
+
+
+//
+// GET /api/reviews/denuncias/minhas
+// Lista os IDs das avaliações denunciadas
+// pelo utilizador autenticado.
+//
+router.get(
+  '/denuncias/minhas',
+  auth(),
+  a(async (req, res) => {
+    const denuncias = await ReviewDenuncia
+      .find({
+        autor: req.user.id
+      })
+      .select('avaliacao -_id')
+      .lean();
+
+    const avaliacoesDenunciadas =
+      denuncias.map(
+        (denuncia) =>
+          String(denuncia.avaliacao)
+      );
+
+    res.json(avaliacoesDenunciadas);
+  })
+);
+
 
 // GET /api/reviews?produtor=&produto=
 // Lista apenas avaliações visíveis.
@@ -257,44 +286,102 @@ router.post(
   })
 );
 
+
 router.post(
   '/:id/denuncia',
   auth(),
   a(async (req, res) => {
-    const {
-      id
-    } = req.params;
+    const { id } = req.params;
+    const { motivo, descricao = '' } = req.body || {};
 
     if (!Types.ObjectId.isValid(id)) {
-      throw erro(
-        400,
-        'Avaliação inválida'
-      );
+      throw erro(400, 'Avaliação inválida');
     }
 
-    const avaliacao =
-      await Review.findOneAndUpdate(
-        {
-          _id: id,
-          visivel: true
-        },
-        {
-          $inc: {
-            denuncias: 1
-          }
-        },
-        {
-          new: true
-        }
-      );
+    const motivosValidos = [
+      'linguagem_ofensiva',
+      'informacao_falsa',
+      'spam',
+      'outro'
+    ];
+
+    if (!motivosValidos.includes(motivo)) {
+      throw erro(400, 'Seleciona um motivo de denúncia válido');
+    }
+
+    if (
+      typeof descricao !== 'string' ||
+      descricao.trim().length > 1000
+    ) {
+      throw erro(400, 'Descrição inválida (máximo de 1000 caracteres)');
+    }
+
+    const avaliacao = await Review.findOne({
+      _id: id,
+      visivel: true
+    });
 
     if (!avaliacao) {
-      throw erro(
-        404,
-        'Avaliação não encontrada'
-      );
+      throw erro(404, 'Avaliação não encontrada');
     }
 
+    if (String(avaliacao.autor) === String(req.user.id)) {
+      throw erro(403, 'Não podes denunciar a tua própria avaliação');
+    }
+
+    await ReviewDenuncia.init();
+    const sessao = await connection.startSession();
+
+    try {
+      await sessao.withTransaction(async () => {
+        await ReviewDenuncia.create(
+          [
+            {
+              avaliacao: avaliacao._id,
+              autor: req.user.id,
+              motivo,
+              descricao: descricao.trim()
+            }
+          ],
+          {
+            session: sessao
+          }
+        );
+
+        const resultado = await Review.updateOne(
+          {
+            _id: avaliacao._id,
+            visivel: true
+          },
+          {
+            $inc: {
+              denuncias: 1
+            }
+          },
+          {
+            session: sessao
+          }
+        );
+
+        if (resultado.matchedCount !== 1) {
+          throw erro(
+            404,
+            'Avaliação não encontrada'
+          );
+        }
+      });
+    } catch (err) {
+      if (err.code === 11000) {
+        throw erro(
+          409,
+          'Já denunciaste esta avaliação'
+        );
+      }
+
+      throw err;
+    } finally {
+      await sessao.endSession();
+    }
     res.status(204).end();
   })
 );

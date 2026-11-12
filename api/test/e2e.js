@@ -1038,21 +1038,96 @@ async function executar() {
     'não é possível avaliar duas vezes a mesma encomenda/produto -> 409'
   );
 
+  // Uma denúncia exige um motivo válido.
+  const denunciaSemMotivo =
+    await pedido(
+      `/reviews/${idAvaliacaoTeste}/denuncia`,
+      {
+        method: 'POST',
+        token: admin.dados.token,
+        body: {}
+      }
+    );
+
+  ok(
+    denunciaSemMotivo.status === 400,
+    'denúncia sem motivo é rejeitada -> 400'
+  );
+
+  // O autor não pode denunciar a própria avaliação.
+  const denunciaPropria =
+    await pedido(
+      `/reviews/${idAvaliacaoTeste}/denuncia`,
+      {
+        method: 'POST',
+        token: comprador.dados.token,
+        body: {
+          motivo: 'outro',
+          descricao: 'Teste de denúncia própria.'
+        }
+      }
+    );
+
+  ok(
+    denunciaPropria.status === 403,
+    'autor não pode denunciar a própria avaliação -> 403'
+  );
+
+  // O administrador é uma conta diferente do autor.
+  // O endpoint atual permite qualquer utilizador autenticado.
   const denuncia =
     await pedido(
       `/reviews/${idAvaliacaoTeste}/denuncia`,
       {
         method: 'POST',
-
-        token:
-          comprador.dados.token
+        token: admin.dados.token,
+        body: {
+          motivo: 'informacao_falsa',
+          descricao: 'Denúncia criada pelo teste E2E.'
+        }
       }
     );
 
   ok(
-    denuncia.status ===
-      204,
-    'utilizador autenticado denuncia avaliação -> 204'
+    denuncia.status === 204,
+    'denúncia com motivo válido é registada -> 204'
+  );
+
+  // O mesmo utilizador não pode denunciar duas vezes.
+  const denunciaDuplicada =
+    await pedido(
+      `/reviews/${idAvaliacaoTeste}/denuncia`,
+      {
+        method: 'POST',
+        token: admin.dados.token,
+        body: {
+          motivo: 'spam',
+          descricao: 'Tentativa duplicada.'
+        }
+      }
+    );
+
+  ok(
+    denunciaDuplicada.status === 409,
+    'denúncia duplicada é rejeitada -> 409'
+  );
+
+  // As denúncias anteriores persistem na base de dados.
+  const minhasDenuncias =
+    await pedido(
+      '/reviews/denuncias/minhas',
+      {
+        token: admin.dados.token
+      }
+    );
+
+  ok(
+    minhasDenuncias.status === 200 &&
+      Array.isArray(minhasDenuncias.dados) &&
+      minhasDenuncias.dados.includes(
+        String(idAvaliacaoTeste)
+      ),
+    'utilizador consegue consultar denúncias anteriores -> 200'
   );
 
   const denunciadas =
@@ -1064,18 +1139,117 @@ async function executar() {
       }
     );
 
+  const avaliacaoDenunciada =
+    Array.isArray(denunciadas.dados)
+      ? denunciadas.dados.find(
+          (review) =>
+            String(review._id) ===
+            String(idAvaliacaoTeste)
+        )
+      : null;
+
   ok(
-    denunciadas.status ===
-      200 &&
-    Array.isArray(
-      denunciadas.dados
-    ) &&
-    denunciadas.dados.some(
-      (review) =>
-        String(review._id) ===
-        String(idAvaliacaoTeste)
-    ),
-    'admin vê avaliação denunciada'
+    denunciadas.status === 200 &&
+      avaliacaoDenunciada?.denuncias === 1 &&
+      avaliacaoDenunciada?.detalhesDenuncias
+        ?.length === 1 &&
+      avaliacaoDenunciada.detalhesDenuncias[0]
+        ?.motivo === 'informacao_falsa' &&
+      avaliacaoDenunciada.detalhesDenuncias[0]
+        ?.descricao ===
+        'Denúncia criada pelo teste E2E.',
+    'admin consulta motivo e descrição sem duplicar denúncias'
+  );
+
+
+  // Cria uma segunda avaliação para testar
+  // duas denúncias enviadas simultaneamente.
+  const avaliacaoConcorrente =
+    await pedido(
+      '/reviews',
+      {
+        method: 'POST',
+        token: comprador.dados.token,
+        body: {
+          encomenda: idEncomendaTeste,
+          classificacao: 4,
+          comentario:
+            'Avaliação do produtor para teste de concorrência.'
+        }
+      }
+    );
+
+  const idAvaliacaoConcorrente =
+    avaliacaoConcorrente.dados?._id;
+
+  ok(
+    avaliacaoConcorrente.status === 201 &&
+      Boolean(idAvaliacaoConcorrente),
+    'criação de avaliação para teste de denúncias simultâneas'
+  );
+
+  // Envia dois pedidos sem aguardar pelo primeiro.
+  const denunciasSimultaneas =
+    await Promise.all([
+      pedido(
+        `/reviews/${idAvaliacaoConcorrente}/denuncia`,
+        {
+          method: 'POST',
+          token: admin.dados.token,
+          body: {
+            motivo: 'spam',
+            descricao: 'Teste de concorrência.'
+          }
+        }
+      ),
+      pedido(
+        `/reviews/${idAvaliacaoConcorrente}/denuncia`,
+        {
+          method: 'POST',
+          token: admin.dados.token,
+          body: {
+            motivo: 'spam',
+            descricao: 'Teste de concorrência.'
+          }
+        }
+      )
+    ]);
+
+  const estadosDenuncias =
+    denunciasSimultaneas
+      .map((resposta) => resposta.status)
+      .sort((a, b) => a - b);
+
+  ok(
+    estadosDenuncias[0] === 204 &&
+      estadosDenuncias[1] === 409,
+    'duas denúncias simultâneas: apenas uma é aceite'
+  );
+
+  // Confirma que o contador não foi duplicado.
+  const denunciasAposConcorrencia =
+    await pedido(
+      '/admin/reviews/denunciadas',
+      {
+        token: admin.dados.token
+      }
+    );
+
+  const reviewConcorrente =
+    Array.isArray(denunciasAposConcorrencia.dados)
+      ? denunciasAposConcorrencia.dados.find(
+          (review) =>
+            String(review._id) ===
+            String(idAvaliacaoConcorrente)
+        )
+      : null;
+
+  ok(
+    denunciasAposConcorrencia.status === 200 &&
+      reviewConcorrente?.denuncias === 1 &&
+      reviewConcorrente?.detalhesDenuncias
+        ?.length === 1,
+    'contador mantém uma única denúncia após pedidos simultâneos'
   );
 
   const avaliacaoOculta =

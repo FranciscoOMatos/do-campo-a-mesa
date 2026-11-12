@@ -176,6 +176,36 @@ export default function Produtor() {
     setMensagemDenuncia
   ] = useState('');
 
+  const [
+  formularioDenuncia,
+  setFormularioDenuncia
+] = useState(null);
+
+const [
+  motivoDenuncia,
+  setMotivoDenuncia
+] = useState('');
+
+const [
+  descricaoDenuncia,
+  setDescricaoDenuncia
+] = useState('');
+
+const [
+  aConsultarDenuncias,
+  setAConsultarDenuncias
+] = useState(Boolean(token));
+
+const [
+  erroConsultaDenuncias,
+  setErroConsultaDenuncias
+] = useState('');
+
+const [
+  erroDenuncia,
+  setErroDenuncia
+] = useState('');
+
   useEffect(() => {
     let ativo = true;
 
@@ -248,47 +278,132 @@ export default function Produtor() {
     };
   }, [id]);
 
-  async function denunciarAvaliacao(
-    avaliacao
-  ) {
-    if (!token) {
+
+useEffect(() => {
+  let ativo = true;
+
+  if (!token) {
+    setReviewsDenunciadas([]);
+    setAConsultarDenuncias(false);
+    setErroConsultaDenuncias('');
+    return () => {
+      ativo = false;
+    };
+  }
+
+  setAConsultarDenuncias(true);
+  setReviewsDenunciadas([]);
+  setErroConsultaDenuncias('');
+
+  api('/reviews/denuncias/minhas', { token })
+    .then((ids) => {
+      if (ativo) {
+        if (!Array.isArray(ids)) {
+          throw new Error('Resposta inválida da API');
+        }
+
+        setReviewsDenunciadas(ids);
+      }
+    })
+    .catch(() => {
+      if (ativo) {
+        setErroConsultaDenuncias(
+          'Não foi possível verificar as denúncias anteriores. Atualiza a página.'
+        );
+      }
+    })
+    .finally(() => {
+      if (ativo) {
+        setAConsultarDenuncias(false);
+      }
+    });
+
+  return () => {
+    ativo = false;
+  };
+}, [token]);
+
+
+  function abrirFormularioDenuncia(avaliacao) {
+    if (
+      !token ||
+      aConsultarDenuncias ||
+      erroConsultaDenuncias ||
+      reviewADenunciar ||
+      reviewsDenunciadas.includes(avaliacao._id)
+    ) {
+      return;
+    }
+
+    setFormularioDenuncia(
+      (atual) =>
+        atual === avaliacao._id
+          ? null
+          : avaliacao._id
+    );
+
+    setMotivoDenuncia('');
+    setDescricaoDenuncia('');
+    setErroDenuncia('');
+    setMensagemDenuncia('');
+  }
+
+  async function denunciarAvaliacao(evento, avaliacao) {
+    evento.preventDefault();
+
+    if (
+      !token ||
+      !motivoDenuncia ||
+      aConsultarDenuncias ||
+      erroConsultaDenuncias ||
+      reviewADenunciar
+    ) {
       return;
     }
 
     try {
-      setReviewADenunciar(
-        avaliacao._id
-      );
-
-      setErroAvaliacoes('');
+      setReviewADenunciar(avaliacao._id);
+      setErroDenuncia('');
       setMensagemDenuncia('');
 
       await api(
         `/reviews/${avaliacao._id}/denuncia`,
         {
           metodo: 'POST',
-          token
+          token,
+          corpo: {
+            motivo: motivoDenuncia,
+            descricao: descricaoDenuncia.trim()
+          }
         }
       );
 
-      setReviewsDenunciadas(
-        (atuais) => [
-          ...atuais,
-          avaliacao._id
-        ]
-      );
+      setReviewsDenunciadas((atuais) => [
+        ...new Set([...atuais, avaliacao._id])
+      ]);
 
+      setFormularioDenuncia(null);
       setMensagemDenuncia(
         'Avaliação denunciada com sucesso.'
       );
     } catch (err) {
-      setErroAvaliacoes(
-        err.message
-      );
+      if (err.status === 409) {
+        setReviewsDenunciadas((atuais) => [
+          ...new Set([...atuais, avaliacao._id])
+        ]);
+
+        setFormularioDenuncia(null);
+        setMensagemDenuncia(
+          'Esta avaliação já tinha sido denunciada por ti.'
+        );
+      } else {
+        setErroDenuncia(err.message);
+      }
     } finally {
       setReviewADenunciar(null);
     }
   }
+
 
   if (aCarregar) {
     return (
@@ -467,6 +582,26 @@ export default function Produtor() {
           </div>
         )}
 
+
+        {erroConsultaDenuncias && (
+          <div
+            className="alert alert-warning"
+            role="alert"
+          >
+            {erroConsultaDenuncias}
+          </div>
+        )}
+
+        {erroDenuncia && (
+          <div
+            className="alert alert-danger"
+            role="alert"
+          >
+            {erroDenuncia}
+          </div>
+        )}
+
+
         {!erroAvaliacoes &&
           avaliacoes.length === 0 && (
             <p className="texto-secundario">
@@ -542,35 +677,154 @@ export default function Produtor() {
                   </p>
                 )}
 
-                {utilizador && (
-                  <div className="mt-3">
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-danger"
-                      disabled={
-                        reviewADenunciar ===
-                          avaliacao._id ||
-                        reviewsDenunciadas.includes(
+                {utilizador &&
+                  String(avaliacao.autor?._id) !==
+                    String(
+                      utilizador._id ?? utilizador.id
+                    ) && (
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-danger"
+                        disabled={
+                          aConsultarDenuncias ||
+                          Boolean(erroConsultaDenuncias) ||
+                          Boolean(reviewADenunciar) ||
+                          reviewsDenunciadas.includes(
+                            avaliacao._id
+                          )
+                        }
+                        onClick={() =>
+                          abrirFormularioDenuncia(avaliacao)
+                        }
+                      >
+                        {reviewsDenunciadas.includes(
                           avaliacao._id
                         )
-                      }
-                      onClick={() =>
-                        denunciarAvaliacao(
-                          avaliacao
-                        )
-                      }
-                    >
-                      {reviewsDenunciadas.includes(
-                        avaliacao._id
-                      )
-                        ? 'Denunciada'
-                        : reviewADenunciar ===
-                            avaliacao._id
-                          ? 'A denunciar...'
-                          : 'Denunciar'}
-                    </button>
-                  </div>
-                )}
+                          ? 'Denunciada'
+                          : aConsultarDenuncias
+                            ? 'A verificar...'
+                            : formularioDenuncia ===
+                                avaliacao._id
+                              ? 'Fechar formulário'
+                              : 'Denunciar'}
+                      </button>
+
+                      {formularioDenuncia ===
+                        avaliacao._id &&
+                        !reviewsDenunciadas.includes(
+                          avaliacao._id
+                        ) && (
+                          <form
+                            className="border rounded p-3 mt-3"
+                            onSubmit={(evento) =>
+                              denunciarAvaliacao(
+                                evento,
+                                avaliacao
+                              )
+                            }
+                          >
+                            <h3 className="h6 mb-3">
+                              Denunciar avaliação
+                            </h3>
+
+                            <div className="mb-3">
+                              <label
+                                className="form-label"
+                                htmlFor={`motivo-${avaliacao._id}`}
+                              >
+                                Motivo da denúncia *
+                              </label>
+
+                              <select
+                                id={`motivo-${avaliacao._id}`}
+                                className="form-select"
+                                value={motivoDenuncia}
+                                onChange={(evento) =>
+                                  setMotivoDenuncia(
+                                    evento.target.value
+                                  )
+                                }
+                                required
+                              >
+                                <option value="">
+                                  Seleciona um motivo
+                                </option>
+
+                                <option value="linguagem_ofensiva">
+                                  Linguagem ofensiva ou inadequada
+                                </option>
+
+                                <option value="informacao_falsa">
+                                  Informação falsa ou enganosa
+                                </option>
+
+                                <option value="spam">
+                                  Spam ou publicidade
+                                </option>
+
+                                <option value="outro">
+                                  Outro motivo
+                                </option>
+                              </select>
+                            </div>
+
+                            <div className="mb-3">
+                              <label
+                                className="form-label"
+                                htmlFor={`descricao-${avaliacao._id}`}
+                              >
+                                Descrição adicional (opcional)
+                              </label>
+
+                              <textarea
+                                id={`descricao-${avaliacao._id}`}
+                                className="form-control"
+                                rows={3}
+                                maxLength={1000}
+                                value={descricaoDenuncia}
+                                onChange={(evento) =>
+                                  setDescricaoDenuncia(
+                                    evento.target.value
+                                  )
+                                }
+                                placeholder="Explica o motivo da denúncia..."
+                              />
+                            </div>
+
+                            <div className="d-flex gap-2">
+                              <button
+                                type="submit"
+                                className="btn btn-danger btn-sm"
+                                disabled={Boolean(
+                                  reviewADenunciar
+                                )}
+                              >
+                                {reviewADenunciar ===
+                                avaliacao._id
+                                  ? 'A enviar...'
+                                  : 'Enviar denúncia'}
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn btn-outline-secondary btn-sm"
+                                disabled={Boolean(
+                                  reviewADenunciar
+                                )}
+                                onClick={() => {
+                                  setFormularioDenuncia(null);
+                                  setErroDenuncia('');
+                                }}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </form>
+                        )}
+                    </div>
+                  )}
+
 
               </article>
             )
