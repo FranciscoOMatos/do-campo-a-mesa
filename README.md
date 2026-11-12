@@ -786,27 +786,76 @@ Resultado final validado:
 
 ## 16. Cloud
 
-A solução foi preparada para uma arquitetura Cloud, mas **o deployment público não foi realizado na versão final**.
+### 16.1 Deployment realizado
 
-Topologia prevista:
+A aplicação Do Campo à Mesa encontra-se publicada na cloud, utilizando uma arquitetura que separa o frontend, a API, a base de dados e o armazenamento de imagens.
 
-- SPA em serviço de hosting/PaaS (por exemplo, Azure Static Web Apps);
-- API Node/Express em PaaS com WebSockets (por exemplo, Azure App Service);
-- MongoDB Atlas como DBaaS;
-- imagens em serviço de objetos (Azure Blob Storage ou equivalente);
-- HTTPS/WSS em produção.
+Os serviços utilizados são:
 
-O código já utiliza variáveis de ambiente para URL da SPA/API, MongoDB, JWT e storage.
+| Componente | Tecnologia / Serviço | Modelo |
+|---|---|---|
+| Frontend | React + Vite no Render Static Site | Hosting/PaaS |
+| Backend | Node.js + Express no Render Web Service | PaaS |
+| Base de dados | MongoDB Atlas | DBaaS |
+| Imagens | Supabase Storage | BaaS / Object Storage |
+| Backoffice adicional | Laravel, executado localmente | Aplicação local ligada à API cloud |
 
-Não foram apresentados como concluídos:
+### 16.2 Endereços públicos
 
-- URLs públicas;
-- validação HTTPS/WSS em produção;
-- auto-scaling;
-- medição de custos Cloud.
+- Website: https://do-campo-a-mesa-web.onrender.com
+- API: https://do-campo-a-mesa-api-7hoe.onrender.com
+- Health check: https://do-campo-a-mesa-api-7hoe.onrender.com/api/health
+- Swagger: https://do-campo-a-mesa-api-7hoe.onrender.com/api-docs
+
+O frontend e a API utilizam HTTPS.
+
+### 16.3 Base de dados e armazenamento
+
+A API publicada utiliza uma base de dados MongoDB Atlas dedicada ao ambiente de deployment, separada da base utilizada no desenvolvimento local.
+
+As imagens dos produtos são armazenadas num bucket público do Supabase Storage, evitando a dependência do sistema de ficheiros temporário do serviço Render.
+
+Foram publicados os ficheiros de imagem dos 14 produtos de demonstração, que podem ser consultados através do catálogo público.
+
+### 16.4 Comunicação em tempo real
+
+Os leilões utilizam Socket.IO para a comunicação entre clientes e servidor.
+
+A comunicação em tempo real foi testada no ambiente publicado, incluindo ligações WebSocket e atualização de licitações entre sessões de navegador diferentes.
+
+### 16.5 Backoffice Laravel
+
+O backoffice administrativo Laravel continua a ser executado localmente.
+
+Através da variável NODE_API_URL, o Laravel pode comunicar com a API publicada no Render, permitindo consultar os mesmos dados do ambiente de produção.
+
+Foram validados o login administrativo, o dashboard, o logout e a proteção de acesso após terminar sessão.
+
+### 16.6 Segurança e validação
+
+A API utiliza autenticação JWT e autorização baseada em papéis.
+
+Foram executados testes de acesso ao endpoint administrativo de estatísticas, com os seguintes resultados:
+
+- Sem autenticação: HTTP 401.
+- Produtor autenticado: HTTP 403.
+- Administrador autenticado: HTTP 200.
+
+Também foram executados os três testes automatizados existentes no Laravel, com quatro asserções e nenhuma falha.
+
+Estes testes validam os cenários descritos, não constituindo uma auditoria de segurança completa.
+
+### 16.7 Custos e limitações
+
+O deployment utiliza serviços e planos gratuitos, sujeitos às quotas e condições dos respetivos fornecedores.
+
+No plano gratuito do Render, a API pode entrar em suspensão após períodos de inatividade, provocando atrasos no primeiro pedido.
+
+Não foi implementado nem validado auto-scaling. O backoffice Laravel também não foi publicado como serviço independente na cloud.
+
+A solução demonstra a integração entre diferentes serviços cloud, mantendo separados os ambientes de desenvolvimento e produção.
 
 ---
-
 ## 17. Decisões técnicas relevantes
 
 ### Licitações simultâneas
