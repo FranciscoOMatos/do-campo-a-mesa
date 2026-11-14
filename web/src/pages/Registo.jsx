@@ -9,7 +9,9 @@ const ESTADO_INICIAL = {
   password: '',
   papel: 'comprador',
   nomeExploracao: '',
-  localidade: ''
+  localidade: '',
+  lat: '',
+  lng: ''
 };
 
 export default function Registo() {
@@ -30,6 +32,34 @@ export default function Registo() {
     }));
   };
 
+  function obterLocalizacao() {
+    if (!navigator.geolocation) {
+      setErro('O navegador não suporta geolocalização.');
+      return;
+    }
+
+    setErro('');
+
+    navigator.geolocation.getCurrentPosition(
+      (posicao) => {
+        setDados((atual) => ({
+          ...atual,
+          lat: String(posicao.coords.latitude.toFixed(6)),
+          lng: String(posicao.coords.longitude.toFixed(6))
+        }));
+      },
+      () => {
+        setErro(
+          'Não foi possível obter a localização. Introduza as coordenadas manualmente.'
+        );
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000
+      }
+    );
+  }
+
   async function submeter(e) {
     e.preventDefault();
 
@@ -47,7 +77,11 @@ export default function Registo() {
       if (dados.papel === 'produtor') {
         corpo.produtor = {
           nomeExploracao: dados.nomeExploracao,
-          localidade: dados.localidade
+          localidade: dados.localidade,
+          localizacao: {
+            lat: Number(dados.lat),
+            lng: Number(dados.lng)
+          }
         };
       }
 
@@ -187,6 +221,72 @@ export default function Registo() {
             value={dados.localidade}
             onChange={mudar('localidade')}
           />
+
+          <fieldset className="mb-3">
+            <legend className="h5">
+              Localização da exploração
+            </legend>
+
+            <p className="form-text">
+              Indique a localização da exploração agrícola.
+              Esta localização será apresentada no mapa
+              da sua página pública.
+            </p>
+
+            <button
+              type="button"
+              className="btn btn-outline-success mb-3"
+              onClick={obterLocalizacao}
+            >
+              Usar a minha localização atual
+            </button>
+
+            <div className="row g-3">
+              <div className="col-12 col-md-6">
+                <label
+                  htmlFor="registo-latitude"
+                  className="form-label"
+                >
+                  Latitude
+                </label>
+
+                <input
+                  id="registo-latitude"
+                  type="number"
+                  step="any"
+                  min="-90"
+                  max="90"
+                  className="form-control"
+                  placeholder="41.7670"
+                  value={dados.lat}
+                  onChange={mudar('lat')}
+                  required
+                />
+              </div>
+
+              <div className="col-12 col-md-6">
+                <label
+                  htmlFor="registo-longitude"
+                  className="form-label"
+                >
+                  Longitude
+                </label>
+
+                <input
+                  id="registo-longitude"
+                  type="number"
+                  step="any"
+                  min="-180"
+                  max="180"
+                  className="form-control"
+                  placeholder="-8.5830"
+                  value={dados.lng}
+                  onChange={mudar('lng')}
+                  required
+                />
+              </div>
+            </div>
+          </fieldset>
         </>
       )}
 
