@@ -57,6 +57,8 @@ O projeto foi validado com testes automáticos de ponta a ponta sobre a API e os
 ### Produtor
 
 - registo sujeito a validação administrativa;
+- definição da localização da exploração durante o registo, através da geolocalização do navegador ou da introdução manual de coordenadas;
+- apresentação da localização num mapa OpenStreetMap na página pública, após aprovação administrativa;
 - edição da página pública;
 - gestão de produtos (criação, edição e remoção);
 - gestão de stock;
@@ -945,6 +947,20 @@ Enquanto aguarda aprovação, o produtor visualiza um ecrã específico, com a p
 
 Esta melhoria foi integrada através do Pull Request #25.
 
+### Localização geográfica dos produtores
+
+Foi melhorado o registo de produtores para permitir definir a localização da exploração agrícola através de latitude e longitude.
+
+O formulário disponibiliza duas opções: obter as coordenadas através da geolocalização do navegador, mediante autorização do utilizador, ou introduzi-las manualmente.
+
+As coordenadas são validadas pela API e guardadas no MongoDB. Após aprovação administrativa, a localização é apresentada num mapa OpenStreetMap na página pública do produtor. A localização também pode ser alterada posteriormente na edição do perfil.
+
+A melhoria foi validada localmente através do registo de um novo produtor, aprovação administrativa e confirmação do mapa na respetiva página pública.
+
+Foram novamente executadas as 58 verificações E2E, todas aprovadas. O frontend foi compilado com sucesso e a nova versão do formulário foi confirmada no Render.
+
+Esta funcionalidade foi integrada através do Pull Request #28.
+
 ### Sistema de denúncias de avaliações
 
 O sistema de denúncias foi melhorado com:
@@ -984,7 +1000,7 @@ A aplicação foi publicada com a seguinte arquitetura:
 - Imagens: Supabase Storage;
 - Backoffice Laravel: execução local com acesso à API publicada.
 
-Foram confirmados os deployments da API e do frontend com o commit `4f30fb2`, resultante do Pull Request #26.
+Foram confirmados os deployments da API e do frontend no Render com o commit `7e8a001`, resultante do Pull Request #28, que integra a funcionalidade de localização dos produtores. Ambos os serviços apresentaram o estado Live.
 
 A comunicação em tempo real foi demonstrada entre diferentes sessões do navegador, incluindo notificações de encomendas e licitações.
 
