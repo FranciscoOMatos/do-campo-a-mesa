@@ -80,12 +80,37 @@ router.post('/registo', async (req, res, next) => {
     };
 
     if (papel === 'produtor') {
+      let coordenadas;
+
+      if (produtor.localizacao !== undefined) {
+        const { lat, lng } = produtor.localizacao || {};
+
+        if (
+          !Number.isFinite(lat) ||
+          !Number.isFinite(lng) ||
+          lat < -90 ||
+          lat > 90 ||
+          lng < -180 ||
+          lng > 180
+        ) {
+          throw erro(
+            400,
+            'Coordenadas da exploração inválidas'
+          );
+        }
+
+        coordenadas = { lat, lng };
+      }
+
       dadosUtilizador.produtor = {
         nomeExploracao: String(produtor.nomeExploracao).trim(),
         localidade: String(produtor.localidade).trim(),
         descricao: produtor.descricao
           ? String(produtor.descricao).trim()
           : '',
+        ...(coordenadas
+          ? { localizacao: coordenadas }
+          : {}),
         validado: false
       };
     }
